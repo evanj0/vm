@@ -58,6 +58,9 @@ namespace vm.lib
 
         DebugDumpHeap,
 
+        Debug_PrintI64,
+        Debug_PrintBool,
+
         // IO
 
         IO_Console_WriteString,

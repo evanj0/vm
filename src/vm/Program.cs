@@ -10,10 +10,12 @@ var input =
 
 i64.push 1
 i64.push 2
+i64.push 329847
+debug.print_i64
 i64.add
 i64.push 4
 i64.cmp_eq
-debug.dump_stack
+debug.print_bool
 exit 0
 
 ";
@@ -26,8 +28,6 @@ var state = new Vm()
 };
 
 var program = Asm.FromTextFormat(input);
-
-Console.WriteLine(program.Length);
 
 var procTable = new ProcInfo[] { };
 
@@ -58,7 +58,9 @@ catch (VmHeapException e)
 }
 catch (VmExitException e)
 {
+    Console.WriteLine();
     Console.WriteLine(e.Message);
+    Console.WriteLine();
 }
 finally
 {

@@ -76,6 +76,14 @@ public static class Interpreter
                     output.WriteLine("");
                     break;
 
+                case OpCode.Debug_PrintI64:
+                    output.WriteLine($"i64({vm.Stack.Pop().ToI64()})");
+                    break;
+
+                case OpCode.Debug_PrintBool:
+                    output.WriteLine($"bool({vm.Stack.Pop().ToBool()})");
+                    break;
+
                 // Stack Ops
 
                 //  -> i64

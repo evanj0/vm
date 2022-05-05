@@ -47,8 +47,13 @@ module Asm =
                     choice
                         [
                             unaryOpCode "exit" pint32 Ops.Exit fromInt32
+
+                            // Debugging
+
                             nullaryOpCode "debug.dump_stack" Ops.DebugDumpStack
                             nullaryOpCode "debug.dump_heap" Ops.DebugDumpHeap
+                            nullaryOpCode "debug.print_i64" Ops.Debug_PrintI64
+                            nullaryOpCode "debug.print_bool" Ops.Debug_PrintBool
 
                             // IO
 
