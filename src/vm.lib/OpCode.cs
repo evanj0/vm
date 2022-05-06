@@ -47,6 +47,8 @@ namespace vm.lib
         /// </summary>
         Jump,
 
+        Jump_True,
+
         /// <summary>
         /// ptr
         /// </summary>

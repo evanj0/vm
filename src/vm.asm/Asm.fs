@@ -3,16 +3,26 @@
 module Asm =
 
     module internal Internal =
-    
-        type Op =
+        
+        type Op2 =
+            | Op of vm.lib.Op
+            | Label of string
+            | Jump of string
+            | Jump_True of string
+            | Jump_Eq of string
+
+        type Op1 =
             | OpCode of vm.lib.Op
             | Call of string
+            | If of t: Op1 list * e: Op1 list
 
     module internal Text =
 
         module Parse =
 
             open FParsec
+
+            open Internal
 
             module private Internal = 
 
@@ -38,14 +48,24 @@ module Asm =
 
                 let nullaryOpCode name opcode = pOp name (Internal.OpCode (vm.lib.Op(opcode)))
 
+                let pExpr keyword args = pchar '(' >>. spacesAndComments >>. pstring keyword >>. spacesAndComments >>. args .>> spacesAndComments .>> pchar ')'
+
+                let pArg keyword value = pchar '.' >>. pstring keyword >>. spacesAndComments >>. pchar '(' >>. spacesAndComments >>. value .>> spacesAndComments .>> pchar ')'
+
                 let fromInt32 = vm.lib.Word.FromI32
                 let fromInt64 = vm.lib.Word.FromI64
 
                 type Ops = vm.lib.OpCode
 
-                let op = 
+                let (op, opRef) = createParserForwardedToRef()
+
+                let ops = spacesAndComments >>. many (op .>> spacesAndComments)
+
+                let opImpl = 
                     choice
                         [
+                            pExpr "if" (pArg "then" ops .>> spacesAndComments .>>. pArg "else" ops) |>> Op1.If
+
                             unaryOpCode "exit" pint32 Ops.Exit fromInt32
 
                             // Debugging
@@ -94,6 +114,7 @@ module Asm =
                             nullaryOpCode "bool.not" Ops.Bool_Not
                             nullaryOpCode "bool.or" Ops.Bool_Or
                         ]
+                opRef.Value <- opImpl
 
             open Internal
 
@@ -101,6 +122,78 @@ module Asm =
         
     open FParsec
     open Internal
+    
+    open vm.lib
+
+    type internal LabelGen = class
+        val mutable Index: int
+        member this.Increment() = this.Index <- this.Index + 1
+        member this.CreateThen() = sprintf "%d_then" this.Index
+        member this.CreateElse() = sprintf "%d_else" this.Index
+        member this.CreateEnd()  = sprintf "%d_end"  this.Index
+    end
+
+    type internal MutList<'T> = System.Collections.Generic.List<'T>
+
+    let rec internal Convert1to2(input, labelGen: LabelGen): MutList<Op2> =
+        let mutable ops = MutList<Op2>()
+        for op in input do
+            match op with
+            | OpCode op -> 
+                ops.Add(Op2.Op op)
+            | If (t, e) ->
+                let thenLabel = labelGen.CreateThen()
+                let elseLabel = labelGen.CreateElse()
+                let endLabel = labelGen.CreateEnd()
+                labelGen.Increment()
+
+                ops.Add(Jump_True thenLabel)
+                ops.Add(Jump elseLabel)
+
+                ops.Add(Label thenLabel)
+                ops.AddRange(Convert1to2(t, labelGen))
+                ops.Add(Jump endLabel)
+
+                ops.Add(Label elseLabel)
+                ops.AddRange(Convert1to2(e, labelGen))
+                ops.Add(Jump endLabel)
+
+                ops.Add(Label endLabel)
+        ops
+
+    type AssemblerException(message: string) = inherit System.Exception(message)
+
+    type AssemblerLabelException(label: string) = inherit AssemblerException(sprintf "Label `%s` could not be found." label)
+
+    let internal Convert2toOps(input: MutList<Op2>): vm.lib.Op array * string array =
+        let mutable ops = MutList<vm.lib.Op>()
+        let mutable labels = System.Collections.Generic.Dictionary<string, int>()
+        let mutable strings = MutList<string>()
+
+        let getIndex(label) = 
+            if not (labels.ContainsKey(label)) then
+                raise (AssemblerLabelException(label))
+            else 
+                labels[label]
+
+        for i = 0 to input.Count - 1 do
+            let op = input[i]
+            match op with 
+            | Label name -> 
+                labels.Add(name, i)
+            | _ -> ()
+
+        for op in input do
+            match op with
+            | Label _ -> ops.Add(Op(OpCode.NoOp))
+            | Jump_True label ->
+                let index = getIndex(label)
+                ops.Add(Op(OpCode.Jump_True, Word.FromI32(index)))
+            | Jump label ->
+                let index = getIndex(label)
+                ops.Add(Op(OpCode.Jump, Word.FromI32(index)))
+
+        ops.ToArray(), strings.ToArray()
 
     let internal fromTextFormat text =
         match run Text.Parse.program text with
@@ -113,7 +206,7 @@ module Asm =
             |> Result.Ok 
         | Failure (msg, _, _) -> Result.Error msg
 
-    let FromTextFormat(text: string): vm.lib.Op array = 
+    let FromTextFormat(text: string): Op array = 
         match fromTextFormat text with
         | Result.Ok ops -> List.toArray ops
         | Result.Error msg -> raise (System.Exception(msg))
