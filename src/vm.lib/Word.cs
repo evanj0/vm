@@ -135,6 +135,19 @@ namespace vm.lib
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int ReadI32(int offset)
+        {
+            unsafe
+            {
+                fixed (Word* wordPtr = &this)
+                {
+                    int* intPtr = (int*)((byte*)wordPtr + offset);
+                    return *intPtr;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort ReadU16(int offset)
         {
             unsafe
@@ -149,6 +162,24 @@ namespace vm.lib
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Word SetU32(int offset, uint value)
+        {
+            unsafe
+            {
+                fixed (Word* wordPtr = &this)
+                {
+                    byte* uintPtr = (byte*)&value;
+                    byte* bytePtr = (byte*)wordPtr;
+                    bytePtr[offset] = uintPtr[0];
+                    bytePtr[offset + 1] = uintPtr[1];
+                    bytePtr[offset + 2] = uintPtr[2];
+                    bytePtr[offset + 3] = uintPtr[3];
+                    return *wordPtr;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Word SetI32(int offset, int value)
         {
             unsafe
             {

@@ -1,4 +1,4 @@
-﻿namespace vm.asm
+﻿namespace asm.lib
 
 module Asm =
 
@@ -118,15 +118,17 @@ module Asm =
 
             open Internal
 
-            let program = spacesAndComments >>. many (op .>> spacesAndComments)
+            let entryPoint = pArg "entry_point" ops
+
+            let program = spacesAndComments >>. entryPoint .>> spacesAndComments
         
     open FParsec
     open Internal
     
     open vm.lib
 
-    type internal LabelGen = class
-        val mutable Index: int
+    type internal LabelGen() = class
+        member val Index: int = 0 with get, set
         member this.Increment() = this.Index <- this.Index + 1
         member this.CreateThen() = sprintf "%d_then" this.Index
         member this.CreateElse() = sprintf "%d_else" this.Index
@@ -163,11 +165,12 @@ module Asm =
 
     type AssemblerException(message: string) = inherit System.Exception(message)
 
-    type AssemblerLabelException(label: string) = inherit AssemblerException(sprintf "Label `%s` could not be found." label)
+    type AssemblerLabelException(label) = inherit AssemblerException(sprintf "Label `%s` could not be found." label)
 
-    let internal Convert2toOps(input: MutList<Op2>): vm.lib.Op array * string array =
+    let internal Convert2toOps(input: MutList<Op2>): vm.lib.Op array * vm.lib.ProcInfo array * string array =
         let mutable ops = MutList<vm.lib.Op>()
         let mutable labels = System.Collections.Generic.Dictionary<string, int>()
+        let mutable procTable = MutList<vm.lib.ProcInfo>()
         let mutable strings = MutList<string>()
 
         let getIndex(label) = 
@@ -185,6 +188,7 @@ module Asm =
 
         for op in input do
             match op with
+            | Op2.Op op -> ops.Add(op)
             | Label _ -> ops.Add(Op(OpCode.NoOp))
             | Jump_True label ->
                 let index = getIndex(label)
@@ -193,20 +197,17 @@ module Asm =
                 let index = getIndex(label)
                 ops.Add(Op(OpCode.Jump, Word.FromI32(index)))
 
-        ops.ToArray(), strings.ToArray()
+        ops.ToArray(), procTable.ToArray(), strings.ToArray()
 
     let internal fromTextFormat text =
         match run Text.Parse.program text with
         | Success (ops, _, _) -> 
-            ops 
-            |> List.map (fun op ->
-                match op with
-                | OpCode op -> op
-                | _ -> failwith "Not Implemented")
-            |> Result.Ok 
+            Convert2toOps(Convert1to2(ops, LabelGen())) |> Result.Ok
         | Failure (msg, _, _) -> Result.Error msg
 
-    let FromTextFormat(text: string): Op array = 
+    type AssemblerParsingException(message) = inherit AssemblerException(message)
+
+    let FromTextFormat(text: string) = 
         match fromTextFormat text with
-        | Result.Ok ops -> List.toArray ops
-        | Result.Error msg -> raise (System.Exception(msg))
+        | Result.Ok ops -> ops
+        | Result.Error msg -> raise (AssemblerParsingException(msg))
