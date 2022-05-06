@@ -55,16 +55,15 @@ public static class Interpreter
                         break;
                     }
 
-                // bool -> 
-                case OpCode.JumpIfFalse:
-                    if (vm.Stack.Pop().ToBool() == false)
-                    {
-                        vm.Ip += inst.Data.ToI32();
-                    }
+                case OpCode.Jump:
+                    vm.Ip = inst.Data.ToI32();
                     break;
 
-                case OpCode.Jump:
-                    vm.Ip += inst.Data.ToI32();
+                case OpCode.Jump_True:
+                    if (vm.Stack.Pop().ToBool() == true)
+                    {
+                        vm.Ip = inst.Data.ToI32();
+                    }
                     break;
 
                 // Debugging
@@ -77,11 +76,11 @@ public static class Interpreter
                     break;
 
                 case OpCode.Debug_PrintI64:
-                    output.WriteLine($"i64({vm.Stack.Pop().ToI64()})");
+                    output.WriteLine($"{vm.Stack.Pop().ToI64()}");
                     break;
 
                 case OpCode.Debug_PrintBool:
-                    output.WriteLine($"bool({vm.Stack.Pop().ToBool()})");
+                    output.WriteLine($"{vm.Stack.Pop().ToBool().ToString().ToLower()}");
                     break;
 
                 // Stack Ops

@@ -31,14 +31,19 @@ public class Program
     private static void Run(Options options)
     {
         var text = File.ReadAllText(options.InputFile);
-        (var program, var procTable, var strings) = Asm.FromTextFormat(text);
-        var assembly = new Assembly(program, procTable, strings);
-        var bytes = assembly.Serialize();
+        var bytes = Assemble(text, options).Serialize();
         File.WriteAllBytes(options.OutputFile, bytes);
     }
 
-    public static void HandleError(IEnumerable<Error> errors)
+    private static void HandleError(IEnumerable<Error> errors)
     {
         
+    }
+
+    public static Assembly Assemble(string text, Options options)
+    {
+        (var program, var procTable, var strings) = Asm.FromTextFormat(text);
+        var assembly = new Assembly(program, procTable, strings);
+        return assembly;
     }
 }

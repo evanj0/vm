@@ -35,4 +35,33 @@ namespace vm.lib
         }
     }
 
+    public class LoggedOutput : IVmOutput
+    {
+        public LoggedOutput()
+        {
+            _sb = new StringBuilder();
+        }
+
+        private StringBuilder _sb;
+
+        public void WriteLine(string s)
+        {
+            _sb.AppendLine(s);
+        }
+
+        public void Write(string s)
+        {
+            _sb.Append(s);
+        }
+
+        public void WriteBytes(byte[] bytes)
+        {
+            _sb.Append(Encoding.UTF8.GetString(bytes));
+        }
+
+        public override string ToString()
+        {
+            return _sb.ToString();
+        }
+    }
 }
