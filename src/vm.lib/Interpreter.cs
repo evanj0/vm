@@ -41,7 +41,7 @@ public static class Interpreter
                 case OpCode.Call:
                     {
                         var proc = inst.Data.ToI32();
-                        Call(ref vm, maxStack, procTable, proc, 0);
+                        Call(ref vm, maxStack, procTable, proc);
                         break;
                     }
 
@@ -95,17 +95,9 @@ public static class Interpreter
                     vm.Stack.Push(inst.Data);
                     break;
 
-                case OpCode.LocalArgLoad:
+                case OpCode.ArgLoad:
                     {
-                        var index = PeekCurrentFrame(ref vm).BaseSp + inst.Data.ToI32();
-                        var value = vm.Stack.Index(index);
-                        vm.Stack.Push(value);
-                        break;
-                    }
-
-                case OpCode.LocalClosureArgLoad:
-                    {
-                        var index = PeekCurrentFrame(ref vm).ClosureArgsSp + inst.Data.ToI32();
+                        var index = PeekCurrentFrame(ref vm).ArgsSp + inst.Data.ToI32();
                         var value = vm.Stack.Index(index);
                         vm.Stack.Push(value);
                         break;
@@ -163,27 +155,6 @@ public static class Interpreter
                         break;
                     }
 
-                // -- Locals Sp
-                // closure arg_n
-                // ...
-                // closure arg_0
-                // -- Closure Args Sp
-                // procedure arg_n
-                // ...
-                // procedure arg_1
-                // -- Base Pointer
-                case OpCode.ClosureApply:
-                    {
-                        var pointer = vm.Stack.Pop().ToHeapPointer();
-                        var header = heap.GetClosureHeader(pointer);
-                        Call(ref vm, maxStack, procTable, header.Pointer, header.NumArgs);
-                        for (var i = 0; i < header.NumArgs; i++)
-                        {
-                            vm.Stack.Push(heap.GetClosureArg(pointer, i));
-                        }
-                        break;
-                    }
-
                 // Math
 
                 // i64 i64 -> i64
@@ -213,27 +184,33 @@ public static class Interpreter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void Call(ref Vm vm, int maxStack, ProcInfo[] procTable, int proc, int closureArgs)
+    private static void Call(ref Vm vm, int maxStack, ProcInfo[] procTable, int proc)
     {
         if (proc >= procTable.Length)
         {
             throw new ProcedureDoesNotExistException(proc);
         }
-        if (vm.Frames.Count >= maxStack)
+        if (vm.Frames.Count + 1 > maxStack)
         {
             throw new CallStackOverflowException(vm.Frames.Count);
         }
-        if (vm.Stack.Sp - procTable[proc].NumArgs < 0)
+        // check if sp will be moved below 0. this can happen if not all args are placed on the stack when a proc is called. 
+        if (vm.Stack.Sp - procTable[proc].NumParams < 0)
         {
             throw new VmException("Base stack pointer was moved out of range.");
         }
         vm.Frames.Push(new Frame(
-            returnAddr: vm.Ip, 
-            baseSp: vm.Stack.Sp - procTable[proc].NumArgs, // baseSp at first argument
-            closureArgsOffset: procTable[proc].NumArgs, // closure args after arguments
-            localsOffset: procTable[proc].NumArgs + closureArgs // locals after closure args and procedure args
+            returnAddr: vm.Ip, // return to where execution is now
+            baseSp: vm.Stack.Sp - procTable[proc].NumParams, // baseSp starts where sp is now - number of params. this passes the args
+            procInfo: procTable[proc]
             ));
+        // move ip
         vm.Ip = procTable[proc].Addr;
+        // initialize locals
+        for (var i = 0; i < procTable[proc].NumParams; i++)
+        {
+            vm.Stack.Push(Word.Zero());
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

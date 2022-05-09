@@ -6,15 +6,22 @@ module Asm =
         
         type Op2 =
             | Op of vm.lib.Op
+            | Call of string
             | Label of string
             | Jump of string
             | Jump_True of string
-            | Jump_Eq of string
 
-        type Op1 =
+        type Stmt =
             | OpCode of vm.lib.Op
             | Call of string
-            | If of t: Op1 list * e: Op1 list
+            | Arg of string
+            | Local of string
+            | If of t: Stmt list * e: Stmt list
+
+        type TopLevel =
+            | Proc of name: string * parameters: string list * locals: string list * ops: Stmt list
+
+        type Code = { entryPoint: Stmt list; topLevel: TopLevel list }
 
     module internal Text =
 
@@ -28,11 +35,12 @@ module Asm =
 
                 let comment: Parser<_, unit> = pstring ";;" .>>. manyCharsTill anyChar (pchar '\n') >>% ()
 
-                let spacesAndComments = many (spaces1 <|> skipMany1 comment)
+                /// Spaces and comments.
+                let sp = many (spaces1 <|> skipMany1 comment)
 
                 let quotedString: Parser<_, unit> = pchar '"' >>. manyCharsTill anyChar (pchar '"')
 
-                let ident: Parser<_, unit> = pchar '#' >>. (asciiLetter <|> digit)
+                let ident: Parser<_, unit> = pchar '#' >>. many1Chars (asciiLetter <|> digit <|> anyOf "_-.[]<>:")
 
                 let pOpGen name args : Parser<_, unit> = pstring name >>. spaces >>. args
 
@@ -48,9 +56,9 @@ module Asm =
 
                 let nullaryOpCode name opcode = pOp name (Internal.OpCode (vm.lib.Op(opcode)))
 
-                let pExpr keyword args = pchar '(' >>. spacesAndComments >>. pstring keyword >>. spacesAndComments >>. args .>> spacesAndComments .>> pchar ')'
+                let pExpr keyword args = pchar '(' >>. sp >>. pstring keyword >>. sp >>. args .>> sp .>> pchar ')'
 
-                let pArg keyword value = pchar '.' >>. pstring keyword >>. spacesAndComments >>. pchar '(' >>. spacesAndComments >>. value .>> spacesAndComments .>> pchar ')'
+                let pArg keyword value = attempt(pchar '.' >>. pstring keyword) >>. sp >>. pchar '(' >>. sp >>. value .>> sp .>> pchar ')'
 
                 let fromInt32 = vm.lib.Word.FromI32
                 let fromInt64 = vm.lib.Word.FromI64
@@ -59,12 +67,12 @@ module Asm =
 
                 let (op, opRef) = createParserForwardedToRef()
 
-                let ops = spacesAndComments >>. many (op .>> spacesAndComments)
+                let ops = many (op .>> sp)
 
                 let opImpl = 
                     choice
                         [
-                            pExpr "if" (pArg "then" ops .>> spacesAndComments .>>. pArg "else" ops) |>> Op1.If
+                            pExpr "if" (pArg "then" ops .>> sp .>>. pArg "else" ops) |>> Stmt.If
 
                             unaryOpCode "exit" pint32 Ops.Exit fromInt32
 
@@ -74,6 +82,7 @@ module Asm =
                             nullaryOpCode "debug.dump_heap" Ops.DebugDumpHeap
                             nullaryOpCode "debug.print_i64" Ops.Debug_PrintI64
                             nullaryOpCode "debug.print_bool" Ops.Debug_PrintBool
+                            // pstring "debug.message" >>. sp >>. quotedString |>> 
 
                             // IO
 
@@ -82,6 +91,12 @@ module Asm =
                             // Values
 
                             unaryOpCode "i64.push" pint64 Ops.I64Push fromInt64 
+
+                            // Procs
+
+                            pstring "call" >>. sp >>. ident |>> Stmt.Call
+                            pstring "local.push" >>. sp >>. ident |>> Stmt.Local
+                            pstring "arg.push" >>. sp >>. ident |>> Stmt.Arg
 
                             // Math
 
@@ -120,7 +135,11 @@ module Asm =
 
             let entryPoint = pArg "entry_point" ops
 
-            let program = spacesAndComments >>. entryPoint .>> spacesAndComments
+            let proc = pExpr "proc" (ident .>> sp .>>. many (pArg "param" ident .>> sp) .>>. many (pArg "local" ident .>> sp) .>>. ops) |>> fun (((name, parameters), locals), ops) -> TopLevel.Proc (name, parameters, locals, ops)
+
+            let topLevel = many (proc .>> sp)
+
+            let program = sp >>. entryPoint .>> sp .>>. topLevel .>> sp .>> eof |>> fun (entryPoint, topLevel) -> { Code.entryPoint = entryPoint; Code.topLevel = topLevel }
         
     open FParsec
     open Internal
@@ -134,11 +153,199 @@ module Asm =
         member this.CreateElse() = sprintf "%d_else" this.Index
         member this.CreateEnd()  = sprintf "%d_end"  this.Index
     end
+    
+    type AssemblerException(message: string) = inherit System.Exception(message)
+    
+    type AssemblerLabelException(label) = inherit AssemblerException(sprintf "Label `%s` could not be found." label)
 
-    type internal MutList<'T> = System.Collections.Generic.List<'T>
+    type internal AsmBuilder() = class
+        let _ops = System.Collections.Generic.List<Op2>()
+        let _labelPrefixStack = System.Collections.Generic.Stack<string>()
+        let mutable _labelPrefixIndex = 0;
+        let _paramMap = System.Collections.Generic.Dictionary<string, int>()
+        let mutable _paramIndex = 0;
+        let _localMap = System.Collections.Generic.Dictionary<string, int>()
+        let mutable _localIndex = 0;
+        /// name => label, numParams, numLocals
+        let _procMap = System.Collections.Generic.Dictionary<string, string * int * int>()
+        /// name => index
+        let _procToIndex = System.Collections.Generic.Dictionary<string, int>()
+        /// index => name
+        let _procs = System.Collections.Generic.List<string>()
+        let _strings = System.Collections.Generic.List<string>()
+        let CreateLabel(label: string) =
+            if _labelPrefixStack.Count = 0 then
+                label
+            else
+                sprintf "%s::%s" (_labelPrefixStack.Peek()) label
 
-    let rec internal Convert1to2(input, labelGen: LabelGen): MutList<Op2> =
-        let mutable ops = MutList<Op2>()
+        member this.PushLabelPrefix(prefix: string) =
+            _labelPrefixStack.Push(prefix)
+            this
+        member this.PushLabelPrefix() =
+            _labelPrefixStack.Push(sprintf "%d" _labelPrefixIndex)
+            _labelPrefixIndex <- _labelPrefixIndex + 1
+            this
+        member this.PopLabelPrefix() =
+            _labelPrefixStack.Pop() |> ignore
+            this
+        member this.Label(label: string) =
+            _ops.Add(Label (CreateLabel(label)))
+            this
+        member this.Jump(label: string) =
+            _ops.Add(Jump (CreateLabel(label)))
+            this
+        member this.JumpTrue(label: string) =
+            _ops.Add(Jump_True (CreateLabel(label)))
+            this
+        member this.Op(op: Op) =
+            _ops.Add(Op2.Op op)
+            this
+        member this.Op(opCode: OpCode, value: Word) =
+            _ops.Add(Op2.Op (Op(opCode, value)))
+            this
+        member this.Op(opCode: OpCode) =
+            _ops.Add(Op2.Op (Op(opCode)))
+            this
+        member this.DebugMessage(message: string) =
+            let index = _strings.Count
+            _strings.Add(message)
+            this.Op(OpCode.Debug_Message, Word.FromI32(index))
+
+        member this.BeginProc(name: string, numParams: int, numLocals: int) =
+            let label = sprintf "proc::%s" name
+            // update proc table
+            _procMap.Add(name, (label, numParams, numLocals))
+            // update proc <=> index bimap
+            let index = _procs.Count
+            _procToIndex.Add(name, index)
+            _procs.Add(name)
+            // label starts proc
+            this.Label(label)
+        member this.Param(name: string) =
+            _paramMap.Add(name, _paramIndex)
+            _paramIndex <- _paramIndex + 1
+            this
+        member this.Local(name: string) =
+            _localMap.Add(name, _localIndex)
+            _localIndex <- _localIndex + 1
+            this
+        member this.EndProc() =
+            // clear params and locals
+            _paramMap.Clear()
+            _localMap.Clear()
+            _paramIndex <- 0
+            _localIndex <- 0
+            this.Op(OpCode.Return)
+
+        member this.Call(name: string) =
+            _ops.Add(Op2.Call name)
+            this
+
+        member this.Stmts(input: Stmt list): AsmBuilder =
+            for stmt in input do
+                match stmt with
+                | OpCode op -> 
+                    this.Op(op)
+                | Call name ->
+                    this.Call(name)
+                | Arg name ->
+                    this.Op(OpCode.ArgLoad, Word.FromI32(_paramMap[name]))
+                | Local name ->
+                    this.Op(OpCode.LocalLoad, Word.FromI32(_localMap[name]))
+                | If (t, e) ->
+                    this.PushLabelPrefix()
+                        .JumpTrue("then")
+                        .Jump("else")
+
+                        .Label("then")
+                        .Stmts(t)
+                        .Jump("end")
+
+                        .Label("else")
+                        .Stmts(e)
+                        .Jump("end")
+
+                        .Label("end")
+                        .PopLabelPrefix()
+                
+                |> ignore
+            this
+
+        static member FromCode(code: Code): AsmBuilder =
+            let asmb = AsmBuilder()
+            asmb
+                .Jump("entry_point")
+                .Label("entry_point")
+                .Stmts(code.entryPoint)
+                // guard against crashing if user forgets to exit
+                .Op(OpCode.Exit, Word.FromI32(0))
+                |> ignore
+            for topLevel in code.topLevel do
+                match topLevel with 
+                | Proc (name, parameters, locals, stmts) ->
+                    asmb.BeginProc(name, parameters.Length, locals.Length) |> ignore
+                    // add params
+                    for parameter in parameters do
+                        asmb.Param(parameter) |> ignore
+                    // add locals
+                    for local in locals do
+                        asmb.Local(local) |> ignore
+                    asmb
+                        .Stmts(stmts)
+                        .EndProc() |> ignore
+            asmb
+            
+        member this.ToAssembly() =
+            let ops = System.Collections.Generic.List<Op>()
+            let mutable labels = System.Collections.Generic.Dictionary<string, int>()
+            let procTable = System.Collections.Generic.List<ProcInfo>()
+            let getIndex(label) = 
+                if not (labels.ContainsKey(label)) then
+                    raise (AssemblerLabelException(label))
+                else 
+                    labels[label]
+            
+            // construct label => index map
+            for i = 0 to _ops.Count - 1 do
+                let op = _ops[i]
+                match op with 
+                | Label name -> 
+                    labels.Add(name, i)
+                | _ -> ()
+            
+            // convert maps to actual proctable. this adds in correct order recorded in _procToIndex
+            for proc in _procs do
+                let (label, numParams, numLocals) = _procMap[proc]
+                let index = getIndex(label)
+                procTable.Add(ProcInfo(index, numParams, numLocals))
+
+            // convert to real ops
+            for op in _ops do
+                match op with
+                // passthrough ops
+                | Op2.Op op -> ops.Add(op)
+                // replace labels with noOps to keep indices the same
+                | Op2.Call name ->
+                    // need to use this because proc name and label name are different
+                    let index = _procToIndex[name]
+                    ops.Add(Op(OpCode.Jump, Word.FromI32(index)))
+                | Label _ -> ops.Add(Op(OpCode.NoOp))
+                // ops that use labels
+                | Jump_True label ->
+                    let index = getIndex(label)
+                    ops.Add(Op(OpCode.Jump_True, Word.FromI32(index)))
+                | Jump label ->
+                    let index = getIndex(label)
+                    ops.Add(Op(OpCode.Jump, Word.FromI32(index)))                    
+
+            Assembly(ops.ToArray(), procTable.ToArray(), _strings.ToArray())
+
+    end
+    type CsList<'T> = System.Collections.Generic.List<'T>
+
+    let rec internal ConvertOps1to2(input, labelGen: LabelGen): CsList<Op2> =
+        let mutable ops = CsList<Op2>()
         for op in input do
             match op with
             | OpCode op -> 
@@ -153,25 +360,29 @@ module Asm =
                 ops.Add(Jump elseLabel)
 
                 ops.Add(Label thenLabel)
-                ops.AddRange(Convert1to2(t, labelGen))
+                ops.AddRange(ConvertOps1to2(t, labelGen))
                 ops.Add(Jump endLabel)
 
                 ops.Add(Label elseLabel)
-                ops.AddRange(Convert1to2(e, labelGen))
+                ops.AddRange(ConvertOps1to2(e, labelGen))
                 ops.Add(Jump endLabel)
 
                 ops.Add(Label endLabel)
         ops
 
-    type AssemblerException(message: string) = inherit System.Exception(message)
+    let internal Convert1to2(program: Code) = 
+        let mutable ops = CsList<Op2>()
+        let entryPointLabel = "entry_point"
+        let labelGen = LabelGen()
+        ops.Add(Jump entryPointLabel)
+        ops.Add(Label entryPointLabel)
+        ops.AddRange(ConvertOps1to2(program.entryPoint, labelGen))
 
-    type AssemblerLabelException(label) = inherit AssemblerException(sprintf "Label `%s` could not be found." label)
-
-    let internal Convert2toOps(input: MutList<Op2>): vm.lib.Op array * vm.lib.ProcInfo array * string array =
-        let mutable ops = MutList<vm.lib.Op>()
+    let internal Convert2toOps(input: CsList<Op2>): vm.lib.Op array * vm.lib.ProcInfo array * string array =
+        let mutable ops = CsList<vm.lib.Op>()
         let mutable labels = System.Collections.Generic.Dictionary<string, int>()
-        let mutable procTable = MutList<vm.lib.ProcInfo>()
-        let mutable strings = MutList<string>()
+        let mutable procTable = CsList<vm.lib.ProcInfo>()
+        let mutable strings = CsList<string>()
 
         let getIndex(label) = 
             if not (labels.ContainsKey(label)) then
@@ -199,15 +410,11 @@ module Asm =
 
         ops.ToArray(), procTable.ToArray(), strings.ToArray()
 
-    let internal fromTextFormat text =
-        match run Text.Parse.program text with
-        | Success (ops, _, _) -> 
-            Convert2toOps(Convert1to2(ops, LabelGen())) |> Result.Ok
-        | Failure (msg, _, _) -> Result.Error msg
-
     type AssemblerParsingException(message) = inherit AssemblerException(message)
 
     let FromTextFormat(text: string) = 
-        match fromTextFormat text with
-        | Result.Ok ops -> ops
-        | Result.Error msg -> raise (AssemblerParsingException(msg))
+        match run Text.Parse.program text with
+        | Success (code, _, _) -> 
+            // Convert2toOps(ConvertOps1to2(program.entryPoint, LabelGen()))
+            AsmBuilder.FromCode(code).ToAssembly()
+        | Failure (msg, _, _) -> raise (AssemblerParsingException(msg))

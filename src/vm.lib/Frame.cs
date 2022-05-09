@@ -10,36 +10,36 @@ namespace vm.lib;
 
 public struct Frame
 {
-    public Frame(int returnAddr, int baseSp, int closureArgsOffset, int localsOffset)
+    public Frame(int returnAddr, int baseSp, ProcInfo procInfo)
     {
         ReturnAddr = returnAddr;
         BaseSp = baseSp;
-        ClosureArgsOffset = closureArgsOffset;
-        LocalsOffset = localsOffset;
+;       ProcInfo = procInfo;
     }
     public int ReturnAddr;
 
     public int BaseSp;
 
-    /// <summary>
-    /// Offset of start of closure args from base stack pointer.
-    /// </summary>
-    public int ClosureArgsOffset;
+    public ProcInfo ProcInfo;
 
-    /// <summary>
-    /// Offset of start of locals from base stack pointer.
-    /// </summary>
-    public int LocalsOffset;
-
-    public int ClosureArgsSp 
+    public int ArgsSp
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => BaseSp + ClosureArgsOffset; 
+        get => BaseSp;
     }
 
     public int LocalsSp
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => BaseSp + LocalsOffset;
+        get => BaseSp + ProcInfo.NumParams;
+    }
+
+    /// <summary>
+    /// sp after args and locals
+    /// </summary>
+    public int Sp
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => BaseSp + ProcInfo.NumParams + ProcInfo.NumLocals;
     }
 }

@@ -24,11 +24,6 @@ namespace vm.lib
                 var baseIndex = currentFrame.BaseSp;
                 for (var i = currentFrame.BaseSp; i < Stack.Sp; i++)
                 {
-                    if (i == currentFrame.ClosureArgsSp)
-                    {
-                        sb.AppendLine("  [Closure Args]:");
-                        baseIndex = currentFrame.ClosureArgsSp;
-                    }
                     if (i == currentFrame.LocalsSp)
                     {
                         sb.AppendLine("  [Locals]:");

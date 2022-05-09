@@ -53,3 +53,22 @@ let test2Text num = $"""
 let test2_1() = test (test2Text 1) (fun s -> s.Trim() = "1")
 [<Test>]
 let test2_2() = test (test2Text 0) (fun s -> s.Trim() = "0")
+
+let test3Text = """
+.entry_point (
+    i64.push 3
+    call #main
+    exit 0
+)
+
+(proc #main .param(#num)
+    .local(#num1)
+    arg.push #num
+    i64.push 2
+    i64.add
+    debug.print_i64
+)
+"""
+
+[<Test>]
+let test3() = test test3Text (fun s -> s.Trim() = "5")

@@ -62,6 +62,7 @@ namespace vm.lib
 
         Debug_PrintI64,
         Debug_PrintBool,
+        Debug_Message,
 
         // IO
 
@@ -94,7 +95,7 @@ namespace vm.lib
         /// <code> -> *</code>
         /// Pushes the argument at <c>index</c> to the stack.
         /// </summary>
-        LocalArgLoad,
+        ArgLoad,
 
         /// <summary>
         /// <code>(local-closure-arg-load index:u16)</code>

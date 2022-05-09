@@ -42,8 +42,6 @@ public class Program
 
     public static Assembly Assemble(string text, Options options)
     {
-        (var program, var procTable, var strings) = Asm.FromTextFormat(text);
-        var assembly = new Assembly(program, procTable, strings);
-        return assembly;
+        return Asm.FromTextFormat(text);
     }
 }

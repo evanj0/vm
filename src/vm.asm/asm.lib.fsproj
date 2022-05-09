@@ -5,9 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ResultExtensions.fs" />
-    <Compile Include="Instructions.fs" />
     <Compile Include="Asm.fs" />
-    <Compile Include="Assembler.fs" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

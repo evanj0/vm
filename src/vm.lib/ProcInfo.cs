@@ -8,14 +8,17 @@ namespace vm.lib
 {
     public struct ProcInfo
     {
-        public ProcInfo(int addr, int numArgs)
+        public ProcInfo(int addr, int numParams, int numLocals)
         {
             Addr = addr;
-            NumArgs = numArgs;
+            NumParams = numParams;
+            NumLocals = numLocals;
         }
 
         public int Addr;
 
-        public int NumArgs;
+        public int NumParams;
+
+        public int NumLocals;
     }
 }
