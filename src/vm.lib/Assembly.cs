@@ -25,10 +25,26 @@ public class Assembly
     {
         var bw = new BinaryWriter()
             .I32_I32(MagicNumber, Version)
-            .I32(Ops.Length);
+            .I32(Ops.Length)
+            .I32(ProcTable.Length)
+            .I32(Strings.Length);
         foreach (var op in Ops)
         {
             bw.Op(op);
+        }
+        foreach (var proc in ProcTable)
+        {
+            bw.I32(proc.Addr);
+            bw.I32(proc.NumParams);
+            bw.I32(proc.NumLocals);
+        }
+        foreach (var str in Strings)
+        {
+            bw.I32(str.Length);
+            foreach (var c in str)
+            {
+                bw.I32(c);
+            }
         }
         return bw.ToByteArray();
     }
@@ -36,9 +52,13 @@ public class Assembly
     public static Assembly Deserialize(byte[] data)
     {
         var ops = new List<Op>();
+        var procTable = new List<ProcInfo>();
+        var strings = new List<string>();
         var br = new BinaryReader(data)
             .I32_I32(out var magicNumber, out var version)
-            .I32(out var opsLength);
+            .I32(out var opsLength)
+            .I32(out var procTableLength)
+            .I32(out var stringsLength);
         if (magicNumber != MagicNumber || version != Version)
         {
             throw new Exception("Invalid assembly file.");
@@ -48,7 +68,47 @@ public class Assembly
             br.Op(out var op);
             ops.Add(op);
         }
-        return new Assembly(ops.ToArray(), new ProcInfo[] { }, new string[] { });
+        for (var i = 0; i < procTableLength; i++)
+        {
+            br.I32(out var procAddr);
+            br.I32(out var procNumParams);
+            br.I32(out var procNumLocals);
+            procTable.Add(new ProcInfo(procAddr, procNumParams, procNumLocals));
+        }
+        for (var i = 0; i < stringsLength; i++)
+        {
+            var sb = new StringBuilder();
+            br.I32(out var strLength);
+            for (var j = 0; j < strLength; j++)
+            {
+                br.I32(out var cAsInt);
+                sb.Append((char)cAsInt);
+            }
+            strings.Add(sb.ToString());
+        }
+        return new Assembly(ops.ToArray(), procTable.ToArray(), strings.ToArray());
+    }
+
+    public string DumpProgram()
+    {
+        var sb = new StringBuilder();
+        foreach (var op in Ops)
+        {
+            sb.AppendLine($"{op.OpCode.ToUserString()} i64: {op.Data.ToI64()} bool: {op.Data.ToBool()}");
+        }
+        return sb.ToString();
+    }
+
+    public string DumpProcTable()
+    {
+        var sb = new StringBuilder();
+        var i = 0;
+        foreach (var proc in ProcTable)
+        {
+            sb.AppendLine($"proc[{i}] addr: {proc.Addr} numParams: {proc.NumParams} numLocals: {proc.NumLocals}");
+            i++;
+        }
+        return sb.ToString();
     }
 }
 

@@ -300,7 +300,7 @@ module Asm =
             let ops = System.Collections.Generic.List<Op>()
             let mutable labels = System.Collections.Generic.Dictionary<string, int>()
             let procTable = System.Collections.Generic.List<ProcInfo>()
-            let getIndex(label) = 
+            let getAddr(label) = 
                 if not (labels.ContainsKey(label)) then
                     raise (AssemblerLabelException(label))
                 else 
@@ -317,8 +317,8 @@ module Asm =
             // convert maps to actual proctable. this adds in correct order recorded in _procToIndex
             for proc in _procs do
                 let (label, numParams, numLocals) = _procMap[proc]
-                let index = getIndex(label)
-                procTable.Add(ProcInfo(index, numParams, numLocals))
+                let addr = getAddr(label)
+                procTable.Add(ProcInfo(addr, numParams, numLocals))
 
             // convert to real ops
             for op in _ops do
@@ -327,17 +327,17 @@ module Asm =
                 | Op2.Op op -> ops.Add(op)
                 // replace labels with noOps to keep indices the same
                 | Op2.Call name ->
-                    // need to use this because proc name and label name are different
+                    // need to use this because we want proc index and not address
                     let index = _procToIndex[name]
-                    ops.Add(Op(OpCode.Jump, Word.FromI32(index)))
+                    ops.Add(Op(OpCode.Call, Word.FromI32(index)))
                 | Label _ -> ops.Add(Op(OpCode.NoOp))
                 // ops that use labels
                 | Jump_True label ->
-                    let index = getIndex(label)
-                    ops.Add(Op(OpCode.Jump_True, Word.FromI32(index)))
+                    let addr = getAddr(label)
+                    ops.Add(Op(OpCode.Jump_True, Word.FromI32(addr)))
                 | Jump label ->
-                    let index = getIndex(label)
-                    ops.Add(Op(OpCode.Jump, Word.FromI32(index)))                    
+                    let addr = getAddr(label)
+                    ops.Add(Op(OpCode.Jump, Word.FromI32(addr)))                    
 
             Assembly(ops.ToArray(), procTable.ToArray(), _strings.ToArray())
 
@@ -415,6 +415,6 @@ module Asm =
     let FromTextFormat(text: string) = 
         match run Text.Parse.program text with
         | Success (code, _, _) -> 
-            // Convert2toOps(ConvertOps1to2(program.entryPoint, LabelGen()))
-            AsmBuilder.FromCode(code).ToAssembly()
+            let asm = AsmBuilder.FromCode(code).ToAssembly()
+            asm
         | Failure (msg, _, _) -> raise (AssemblerParsingException(msg))

@@ -182,7 +182,7 @@ namespace vm.lib
         {
             var pascalCase = new Regex(@"(?<=[A-Z])(?=[A-Z][a-z])|(?<=[^A-Z])(?=[A-Z])|(?<=[A-Za-z])(?=[^A-Za-z])");
             var s = pascalCase.Replace(opCode.ToString().Replace("_", "."), "_").ToLower();
-            return $"({s})";
+            return $"{s}";
         }
     }
 

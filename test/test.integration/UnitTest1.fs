@@ -7,7 +7,10 @@ let test text pred =
     let output = vm.lib.LoggedOutput()
     let mutable vmOptions = vm.Program.Options()
     vmOptions.Debug <- false;
-    vm.Program.RunVm(vm.lib.Assembly.Deserialize(bytes), output, vmOptions)
+    let assembly = vm.lib.Assembly.Deserialize(bytes)
+    // let programDump = assembly.DumpProgram();
+    // let procTableDump = assembly.DumpProcTable();
+    vm.Program.RunVm(assembly, output, vmOptions)
     let outputString = output.ToString()
     printf "%s" (output.ToString())
     Assert.True(pred outputString)
