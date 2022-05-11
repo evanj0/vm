@@ -18,18 +18,45 @@ public class Program
     {
         [Value(index: 0, Required = true, HelpText = "Input assembly file path.")]
         public string InputPath { get; set; }
+    }
 
-        [Option(Default = false, Required = false, HelpText = "Debug mode.")]
-        public bool Debug { get; set; }
+    [Verb("debug", HelpText = "Debug mode.")]
+    public class DebugOptions
+    {
+        [Value(index: 0, Required = true, HelpText = "Input assembly file path.")]
+        public string InputPath { get; set; }
+    }
+
+    [Verb("benchmark", HelpText = "Benchmark mode.")]
+    public class BenchmarkOptions
+    {
+        [Value(index: 0, Required = true, HelpText = "Input assembly file path.")]
+        public string InputPath { get; set; }
+
+        [Option('i', "iterations", Required = true, HelpText = "Number of iterations to perform benchmark over.")]
+        public int Iterations { get; set; }
     }
 
 #nullable enable
 
     public static void Main(string[] args)
     {
-        Parser.Default.ParseArguments<Options>(args)
-           .WithParsed(Run)
-           .WithNotParsed(HandleError);
+        Parser.Default.ParseArguments<Options, DebugOptions, BenchmarkOptions>(args)
+           .MapResult(
+                (Options options) =>
+                {
+
+                },
+                (DebugOptions options) =>
+                {
+
+                },
+                (BenchmarkOptions options) =>
+                {
+
+                },
+                HandleErrors
+            );
     }
 
     private static void Run(Options options)
@@ -39,7 +66,7 @@ public class Program
         RunVm(assembly, new ConsoleOutput(), options);
     }
 
-    private static void HandleError(IEnumerable<Error> errors)
+    private static void HandleErrors(IEnumerable<Error> errors)
     {
 
     }
