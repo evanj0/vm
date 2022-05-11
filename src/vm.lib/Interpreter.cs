@@ -207,7 +207,7 @@ public static class Interpreter
         // move ip
         vm.Ip = procTable[proc].Addr;
         // initialize locals
-        for (var i = 0; i < procTable[proc].NumParams; i++)
+        for (var i = 0; i < procTable[proc].NumLocals; i++)
         {
             vm.Stack.Push(Word.Zero());
         }

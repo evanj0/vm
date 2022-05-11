@@ -16,62 +16,33 @@ namespace vm.lib
         public string Debug()
         {
             var sb = new StringBuilder();
-            if (Frames.Count > 0 && Frames.Last().BaseSp >= 0)
+            if (Frames.Count > 0)
             {
-                sb.AppendLine("Current Frame:");
-                var currentFrame = Frames.Last();
-                sb.AppendLine("  [Procedure Args]:");
-                var baseIndex = currentFrame.BaseSp;
-                for (var i = currentFrame.BaseSp; i < Stack.Sp; i++)
+                var frame = Frames.Peek();
+                sb.AppendLine("[current procedure]");
+                sb.AppendLine(DebugProcInfo(frame));
+                for (var i = frame.ArgsSp; i < frame.LocalsSp; i++)
                 {
-                    if (i == currentFrame.LocalsSp)
-                    {
-                        sb.AppendLine("  [Locals]:");
-                        baseIndex = currentFrame.LocalsSp;
-                    }
-                    sb.Append($"    [{i - baseIndex}]: ");
-                    sb.Append($"{Stack.Data[i].Debug()}");
-                    sb.AppendLine();
+                    sb.AppendLine($"arg.{i - frame.ArgsSp} i64={Stack.Data[i].ToI64()}");
+                }
+                for (var i = frame.LocalsSp; i < frame.Sp; i++)
+                {
+                    sb.AppendLine($"local.{i - frame.LocalsSp} i64={Stack.Data[i].ToI64()}");
+                }
+                sb.AppendLine("[call stack]");
+                var framesPrinted = 0;
+                sb.Append("-> ");
+                while (Frames.Count > 0 && framesPrinted < 8)
+                {
+                    frame = Frames.Pop();
+                    sb.AppendLine($"frame.{framesPrinted} ret={frame.ReturnAddr} proc=({DebugProcInfo(frame)})");
+                    framesPrinted++;
                 }
             }
-            else
-            {
-                sb.AppendLine("Value Stack:");
-                sb.AppendLine($"  Stack Pointer: {Stack.Sp}");
-                try
-                {
-                    var s = Stack.Peek().Debug();
-                    sb.AppendLine($"    [0]: {s}");
-                }
-                catch (VmException) { }
-                try
-                {
-                    var s = Stack.Peek(1).Debug();
-                    sb.AppendLine($"    [1]: {s}");
-                }
-                catch (VmException) { }
-                try
-                {
-                    var s = Stack.Peek(2).Debug();
-                    sb.AppendLine($"    [2]: {s}");
-                }
-                catch (VmException) { }
-                try
-                {
-                    var s = Stack.Peek(3).Debug();
-                    sb.AppendLine($"    [3]: {s}");
-                }
-                catch (VmException) { }
-
-            }
-            sb.AppendLine($"Call Stack:");
-            sb.AppendLine($"  Frames: {Frames.Count}");
-            if (Frames.TryPeek(out var frame))
-            {
-                sb.AppendLine($"    [0]: Return Address = {frame.ReturnAddr}, Base Stack Pointer = {frame.BaseSp}");
-            }
-            sb.AppendLine($"Instruction Pointer: {Ip}");
             return sb.ToString();
         }
+
+        private string DebugProcInfo(Frame frame) =>
+            $"numParams={frame.ProcInfo.NumParams} numLocals={frame.ProcInfo.NumLocals} addr={frame.ProcInfo.Addr}";
     }
 }

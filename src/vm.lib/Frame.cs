@@ -22,6 +22,9 @@ public struct Frame
 
     public ProcInfo ProcInfo;
 
+    /// <summary>
+    /// Same as BaseSp.
+    /// </summary>
     public int ArgsSp
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

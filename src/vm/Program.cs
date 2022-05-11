@@ -70,23 +70,32 @@ public class Program
         catch (VmException e)
         {
             Console.WriteLine($"Runtime Execution Error: {e.Message}");
-            Console.WriteLine("Debugging Info:");
-            Console.WriteLine(state.Debug());
+
+            if (options.Debug)
+            {
+                sw.Stop();
+                Console.WriteLine("Debugging Info:");
+                Console.WriteLine(state.Debug());
+            }
         }
         catch (VmHeapException e)
         {
             Console.WriteLine($"Runtime Memory Error: {e.Message}");
-            Console.WriteLine("Debugging Info:");
-            Console.WriteLine(state.Debug());
+
+            if (options.Debug)
+            {
+                sw.Stop();
+                Console.WriteLine("Debugging Info:");
+                Console.WriteLine(state.Debug());
+            }
             // TODO print object at pointer
         }
         catch (VmExitException e)
         {
             if (options.Debug)
             {
-                Console.WriteLine();
+                sw.Stop();
                 Console.WriteLine(e.Message);
-                Console.WriteLine();
             }
         }
         finally
