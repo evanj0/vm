@@ -89,6 +89,12 @@ public class Assembly
         return new Assembly(ops.ToArray(), procTable.ToArray(), strings.ToArray());
     }
 
+    public static Assembly DeserializeFromFile(string path)
+    {
+        var bytes = File.ReadAllBytes(path);
+        return Assembly.Deserialize(bytes);
+    }
+
     public string DumpProgram()
     {
         var sb = new StringBuilder();

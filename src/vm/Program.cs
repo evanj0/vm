@@ -45,7 +45,10 @@ public class Program
            .MapResult(
                 (Options options) =>
                 {
-
+                    new VmInstanceBuilder()
+                        .WithAssembly(Assembly.DeserializeFromFile(options.InputPath))
+                        .Build()
+                        .
                 },
                 (DebugOptions options) =>
                 {
@@ -133,5 +136,66 @@ public class Program
                 Console.WriteLine($"Execution took {sw.ElapsedMilliseconds} milliseconds.");
             }
         }
+    }
+}
+
+public ref struct VmInstance
+{
+    public VmInstance()
+    {
+        _state = new Vm()
+        {
+            Ip = 0,
+            Stack = new ValueStack(),
+            Frames = new Stack<Frame>(),
+        };
+        _heap = new Heap(initialSize: 1000);
+        _program = new();
+        _procTable = new();
+        _strings = Array.Empty<string>();
+    }
+
+    private Vm _state;
+    private Heap _heap;
+    private Span<Op> _program;
+    private Span<ProcInfo> _procTable;
+    private string[] _strings;
+
+    public void LoadAssembly(Assembly assembly)
+    {
+        _program = assembly.Ops;
+        _procTable = assembly.ProcTable;
+        _strings = assembly.Strings;
+    }
+
+    public void Run()
+    {
+        Interpreter.Run(ref _state, ref _heap, 100000, new ConsoleOutput(), _program, _procTable, _strings);
+    }
+}
+
+public class VmInstanceBuilder
+{
+    public VmInstanceBuilder()
+    {
+
+    }
+
+    private Assembly? _assembly;
+
+    public VmInstanceBuilder WithAssembly(Assembly assembly)
+    {
+        _assembly = assembly;
+        return this;
+    }
+
+    public VmInstance Build()
+    {
+        var vmInstance = new VmInstance();
+        if (_assembly is not null)
+        {
+            vmInstance.LoadAssembly(_assembly);
+        }
+        return vmInstance;
     }
 }

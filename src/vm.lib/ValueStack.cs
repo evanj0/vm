@@ -8,8 +8,9 @@ using System.Threading.Tasks;
 
 namespace vm.lib
 {
-    public struct ValueStack
+    public ref struct ValueStack
     {
+        public Span<Word> Data2 = stackalloc Word[10000];
         public List<Word> Data;
         public int Sp;
 

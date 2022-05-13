@@ -13,7 +13,7 @@ public static class Interpreter
         // TODO pattern matching
         // TODO gc?
 
-    public static void Run(ref Vm vm, ref Heap heap, int maxStack, IVmOutput output, Op[] program, ProcInfo[] procTable, string[] strings)
+    public static ExitStatus Run(ref Vm vm, ref Heap heap, int maxStack, IVmOutput output, Op[] program, ProcInfo[] procTable, string[] strings)
     {
         while (true)
         {
@@ -29,7 +29,7 @@ public static class Interpreter
                 // Control Flow
 
                 case OpCode.Exit:
-                    throw new VmExitException(inst.Data.ToI32());
+                    return new ExitStatus(inst.Data.ToI32());
 
                 case OpCode.NoOp:
                     break;
@@ -234,3 +234,12 @@ public static class Interpreter
     }
 }
 
+public struct ExitStatus
+{
+    public ExitStatus(int exitCode)
+    {
+        ExitCode = exitCode;
+    }
+
+    public int ExitCode;
+}
