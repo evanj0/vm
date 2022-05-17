@@ -1,0 +1,35 @@
+.entry_point(
+    
+    i64.push 32
+    call #fib ;; fib(20)
+    debug.print_i64
+    exit 0
+
+)
+
+(proc #fib 
+    .param(#n)
+
+    arg.push #n
+    i64.push 1
+    i64.cmp_le
+    (if ;; if (n <= 1)
+        .then(
+            arg.push #n
+        )
+        .else (
+            arg.push #n
+            i64.push 1
+            i64.sub
+            call #fib ;; fib(n - 1)
+
+            arg.push #n
+            i64.push 2
+            i64.sub
+            call #fib ;; fib(n - 2)
+
+            i64.add ;; fib(n - 1) + fib(n - 2)
+        )
+    )
+
+)

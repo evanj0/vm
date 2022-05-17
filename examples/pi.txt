@@ -1,0 +1,61 @@
+.entry_point(
+
+    i64.push 10000000 ;; 10_000_000
+    call #pi
+    debug.print_f64
+    exit 0
+
+)
+
+(proc #pi
+    .param(#n_max)
+    .local(#sum)
+    .local(#n)
+
+    f64.push 0
+    loc.store #sum ;; sum = 0
+
+    i64.push 0
+    loc.store #n ;; n = 0
+    (while ;; while (n < n_max)
+        .cond (
+            loc.push #n
+            arg.push #n_max
+            i64.cmp_lt
+        )
+        .do (
+            loc.push #sum
+            
+            f64.push 2.0
+
+            i64.push 4
+            loc.push #n
+            i64.mul
+            i64.push 1
+            i64.add ;; 4 * n + 1
+
+            i64.push 4
+            loc.push #n
+            i64.mul
+            i64.push 3
+            i64.add ;; 4 * n + 3
+
+            i64.mul ;; (4 * n + 1) * (4 * n + 3)
+            i64.conv_f64
+            f64.div ;; 2.0 / (f64)(4 * n + 1) * (4 * n + 3)
+            
+            f64.add
+            loc.store #sum ;; sum = sum + 2.0 / (f64)(4 * n + 1) * (4 * n + 3)
+
+            loc.push #n
+            i64.push 1
+            i64.add
+            loc.store #n ;; n = n + 1
+        )
+    )
+
+    f64.push 4.0
+    loc.push #sum 
+    f64.mul 
+    ;; return 4 * sum
+)

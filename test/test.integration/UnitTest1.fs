@@ -4,13 +4,18 @@ open NUnit.Framework
 
 let test text pred =
     let bytes = asm.Program.Assemble(text, asm.Program.Options()).Serialize()
-    let output = vm.lib.LoggedOutput()
-    let mutable vmOptions = vm.Program.Options()
-    vmOptions.Debug <- false;
+
     let assembly = vm.lib.Assembly.Deserialize(bytes)
-    // let programDump = assembly.DumpProgram();
-    // let procTableDump = assembly.DumpProcTable();
-    vm.Program.RunVm(assembly, output, vmOptions)
+    let output = vm.lib.LoggedOutput()
+
+    vm.VmInstanceBuilder()
+        .WithAssembly(assembly)
+        .WithOutput(output)
+        .WithStackSize(1000000)
+        .Build()
+        .Run() 
+        |> ignore
+
     let outputString = output.ToString()
     printf "%s" (output.ToString())
     Assert.True(pred outputString)

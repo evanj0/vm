@@ -10,20 +10,20 @@ namespace vm.lib
 {
     public ref struct ValueStack
     {
-        public Span<Word> Data2 = stackalloc Word[10000];
-        public List<Word> Data;
+        public Span<Word> Data;
         public int Sp;
 
-        public ValueStack()
+        public ValueStack(int size)
         {
-            Data = new List<Word>();
+            var data = new Word[size];
+            Data = new Span<Word>(data);
             Sp = 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Word Index(int index)
         {
-            if (index >= Data.Count || index < 0)
+            if (index >= Data.Length || index < 0)
             {
                 throw new StackPointerOutOfRangeException();
             }
@@ -46,15 +46,14 @@ namespace vm.lib
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Push(Word word)
         {
-            if (Sp >= Data.Count)
+            if (Sp < Data.Length)
             {
-                Data.Add(word);
+                Data[Sp] = word;
                 Sp++;
             }
             else
             {
-                Data[Sp] = word;
-                Sp++;
+                throw new StackOverflowException();
             }
         }
 

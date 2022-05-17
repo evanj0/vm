@@ -13,7 +13,7 @@ public static class Interpreter
         // TODO pattern matching
         // TODO gc?
 
-    public static ExitStatus Run(ref Vm vm, ref Heap heap, int maxStack, IVmOutput output, Op[] program, ProcInfo[] procTable, string[] strings)
+    public static ExitStatus Run(ref Vm vm, ref Heap heap, int maxStack, IVmOutput output, Span<Op> program, Span<ProcInfo> procTable, string[] strings)
     {
         while (true)
         {
@@ -79,6 +79,10 @@ public static class Interpreter
                     output.WriteLine($"{vm.Stack.Pop().ToI64()}");
                     break;
 
+                case OpCode.Debug_PrintF64:
+                    output.WriteLine($"{vm.Stack.Pop().ToF64()}");
+                    break;
+
                 case OpCode.Debug_PrintBool:
                     output.WriteLine($"{vm.Stack.Pop().ToBool().ToString().ToLower()}");
                     break;
@@ -87,6 +91,10 @@ public static class Interpreter
 
                 //  -> i64
                 case OpCode.I64Push:
+                    vm.Stack.Push(inst.Data);
+                    break;
+
+                case OpCode.F64Push:
                     vm.Stack.Push(inst.Data);
                     break;
 
@@ -108,6 +116,13 @@ public static class Interpreter
                         var index = PeekCurrentFrame(ref vm).LocalsSp + inst.Data.ToI32();
                         var value = vm.Stack.Index(index);
                         vm.Stack.Push(value);
+                        break;
+                    }
+                case OpCode.LocalStore:
+                    {
+                        var value = vm.Stack.Pop();
+                        var index = PeekCurrentFrame(ref vm).LocalsSp + inst.Data.ToI32();
+                        vm.Stack.Data[index] = value;
                         break;
                     }
 
@@ -160,9 +175,60 @@ public static class Interpreter
                 // i64 i64 -> i64
                 case OpCode.I64_Add:
                     {
-                        var val1 = vm.Stack.Pop().ToI64();
                         var val2 = vm.Stack.Pop().ToI64();
+                        var val1 = vm.Stack.Pop().ToI64();
                         vm.Stack.Push(Word.FromI64(val1 + val2));
+                        break;
+                    }
+                case OpCode.I64_Sub:
+                    {
+                        var val2 = vm.Stack.Pop().ToI64();
+                        var val1 = vm.Stack.Pop().ToI64();
+                        vm.Stack.Push(Word.FromI64(val1 - val2));
+                        break;
+                    }
+                case OpCode.I64_Mul:
+                    {
+                        var val2 = vm.Stack.Pop().ToI64();
+                        var val1 = vm.Stack.Pop().ToI64();
+                        vm.Stack.Push(Word.FromI64(val1 * val2));
+                        break;
+                    }
+
+                case OpCode.I64_ConvF64:
+                    {
+                        var val = vm.Stack.Pop().ToI64(); // i64
+                        vm.Stack.Push(Word.FromF64(val)); // f64
+                        break;
+                    }
+
+
+                case OpCode.F64_Add:
+                    {
+                        var val2 = vm.Stack.Pop().ToF64();
+                        var val1 = vm.Stack.Pop().ToF64();
+                        vm.Stack.Push(Word.FromF64(val1 + val2));
+                        break;
+                    }
+                case OpCode.F64_Sub:
+                    {
+                        var val2 = vm.Stack.Pop().ToF64();
+                        var val1 = vm.Stack.Pop().ToF64();
+                        vm.Stack.Push(Word.FromF64(val1 - val2));
+                        break;
+                    }
+                case OpCode.F64_Mul:
+                    {
+                        var val2 = vm.Stack.Pop().ToF64();
+                        var val1 = vm.Stack.Pop().ToF64();
+                        vm.Stack.Push(Word.FromF64(val1 * val2));
+                        break;
+                    }
+                case OpCode.F64_Div:
+                    {
+                        var val2 = vm.Stack.Pop().ToF64();
+                        var val1 = vm.Stack.Pop().ToF64();
+                        vm.Stack.Push(Word.FromF64(val1 / val2));
                         break;
                     }
 
@@ -175,6 +241,30 @@ public static class Interpreter
                         break;
                     }
 
+                case OpCode.I64_CmpLe:
+                    {
+                        var val2 = vm.Stack.Pop().ToI64();
+                        var val1 = vm.Stack.Pop().ToI64();
+                        vm.Stack.Push(Word.FromBool(val1 <= val2));
+                        break;
+                    }
+
+                case OpCode.I64_CmpLt:
+                    {
+                        var val2 = vm.Stack.Pop().ToI64();
+                        var val1 = vm.Stack.Pop().ToI64();
+                        vm.Stack.Push(Word.FromBool(val1 < val2));
+                        break;
+                    }
+
+                case OpCode.F64_CmpLt:
+                    {
+                        var val2 = vm.Stack.Pop().ToF64();
+                        var val1 = vm.Stack.Pop().ToF64();
+                        vm.Stack.Push(Word.FromBool(val1 < val2));
+                        break;
+                    }
+
                 default:
                     throw new InstructionNotSupportedException(inst.OpCode.ToUserString());
             }
@@ -184,7 +274,7 @@ public static class Interpreter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void Call(ref Vm vm, int maxStack, ProcInfo[] procTable, int proc)
+    private static void Call(ref Vm vm, int maxStack, Span<ProcInfo> procTable, int proc)
     {
         if (proc >= procTable.Length)
         {

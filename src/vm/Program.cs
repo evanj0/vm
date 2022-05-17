@@ -14,6 +14,7 @@ public class Program
 {
 #nullable disable
 
+    [Verb("run", isDefault: true, HelpText = "Run program.")]
     public class Options
     {
         [Value(index: 0, Required = true, HelpText = "Input assembly file path.")]
@@ -42,117 +43,66 @@ public class Program
     public static void Main(string[] args)
     {
         Parser.Default.ParseArguments<Options, DebugOptions, BenchmarkOptions>(args)
-           .MapResult(
-                (Options options) =>
-                {
-                    new VmInstanceBuilder()
-                        .WithAssembly(Assembly.DeserializeFromFile(options.InputPath))
-                        .Build()
-                        .
-                },
-                (DebugOptions options) =>
-                {
-
-                },
-                (BenchmarkOptions options) =>
-                {
-
-                },
-                HandleErrors
-            );
+           .WithParsed<Options>(Run)
+           .WithParsed<DebugOptions>(RunDebug)
+           .WithParsed<BenchmarkOptions>(RunBenchmark)
+           .WithNotParsed(HandleErrors);
     }
 
     private static void Run(Options options)
     {
-        var bytes = File.ReadAllBytes(options.InputPath);
-        var assembly = Assembly.Deserialize(bytes);
-        RunVm(assembly, new ConsoleOutput(), options);
+        new VmInstanceBuilder()
+            .WithAssembly(Assembly.DeserializeFromFile(options.InputPath))
+            .WithOutput(new ConsoleOutput())
+            .WithStackSize(1000000)
+            .Build()
+            .Run();
+    }
+
+    private static void RunDebug(DebugOptions options)
+    {
+        new VmInstanceBuilder()
+            .WithAssembly(Assembly.DeserializeFromFile(options.InputPath))
+            .WithOutput(new ConsoleOutput())
+            .WithStackSize(1000000)
+            .Build()
+            .RunDebug();
+    }
+
+    private static void RunBenchmark(BenchmarkOptions options)
+    {
+        var bmInfo = new VmInstanceBuilder()
+            .WithAssembly(Assembly.DeserializeFromFile(options.InputPath))
+            .WithOutput(new LoggedOutput())
+            .WithStackSize(1000000)
+            .Build()
+            .RunBenchmark(options.Iterations);
+        Console.WriteLine($"Benchmark complete ({bmInfo.Iterations} iterations completed in {bmInfo.TimeInMilliseconds} ms).");
+        Console.WriteLine($"Time in milliseconds: {bmInfo.TimeInMillisecondsPerIteration}");
+        Console.WriteLine($"Time in microseconds: {bmInfo.TimeInMicrosecondsPerIteration}");
     }
 
     private static void HandleErrors(IEnumerable<Error> errors)
     {
 
     }
-
-    public static void RunVm(Assembly assembly, IVmOutput output, Options options)
-    {
-        var program = assembly.Ops;
-        var procTable = assembly.ProcTable;
-        var strings = assembly.Strings;
-
-        var state = new Vm()
-        {
-            Ip = 0,
-            Stack = new ValueStack(),
-            Frames = new Stack<Frame>(),
-        };
-
-        var heap = new Heap(initialSize: 2048);
-
-        var maxStack = 65_536 * 16;
-
-        var sw = new Stopwatch();
-        try
-        {
-            sw.Start();
-            Interpreter.Run(ref state, ref heap, maxStack, output, program, procTable, strings);
-        }
-        catch (VmException e)
-        {
-            Console.WriteLine($"Runtime Execution Error: {e.Message}");
-
-            if (options.Debug)
-            {
-                sw.Stop();
-                Console.WriteLine("Debugging Info:");
-                Console.WriteLine(state.Debug());
-            }
-        }
-        catch (VmHeapException e)
-        {
-            Console.WriteLine($"Runtime Memory Error: {e.Message}");
-
-            if (options.Debug)
-            {
-                sw.Stop();
-                Console.WriteLine("Debugging Info:");
-                Console.WriteLine(state.Debug());
-            }
-            // TODO print object at pointer
-        }
-        catch (VmExitException e)
-        {
-            if (options.Debug)
-            {
-                sw.Stop();
-                Console.WriteLine(e.Message);
-            }
-        }
-        finally
-        {
-            if (options.Debug)
-            {
-                sw.Stop();
-                Console.WriteLine($"Execution took {sw.ElapsedMilliseconds} milliseconds.");
-            }
-        }
-    }
 }
 
 public ref struct VmInstance
 {
-    public VmInstance()
+    public VmInstance(int stackSize, IVmOutput output)
     {
         _state = new Vm()
         {
             Ip = 0,
-            Stack = new ValueStack(),
+            Stack = new ValueStack(stackSize),
             Frames = new Stack<Frame>(),
         };
         _heap = new Heap(initialSize: 1000);
         _program = new();
         _procTable = new();
         _strings = Array.Empty<string>();
+        _output = output;
     }
 
     private Vm _state;
@@ -160,6 +110,7 @@ public ref struct VmInstance
     private Span<Op> _program;
     private Span<ProcInfo> _procTable;
     private string[] _strings;
+    private IVmOutput _output;
 
     public void LoadAssembly(Assembly assembly)
     {
@@ -168,9 +119,49 @@ public ref struct VmInstance
         _strings = assembly.Strings;
     }
 
-    public void Run()
+    public ExitStatus Run()
     {
-        Interpreter.Run(ref _state, ref _heap, 100000, new ConsoleOutput(), _program, _procTable, _strings);
+        return Interpreter.Run(ref _state, ref _heap, 1000000, _output, _program, _procTable, _strings);
+    }
+
+    public ExitStatus RunDebug()
+    {
+        try
+        {
+            Run();
+        }
+        catch (VmException e)
+        {
+            Console.WriteLine($"Runtime execution error: {e.Message}");
+            Console.WriteLine("Debugging info:");
+            Console.WriteLine(_state.Debug());
+        }
+        // catch (VmHeapException e) { }
+        return new ExitStatus(1);
+    }
+
+    public BenchmarkInfo RunBenchmark(int iterations)
+    {
+        var sw = new Stopwatch();
+        sw.Start();
+        for (var i = 0; i < iterations; i++)
+        {
+            Run();
+            Reset();
+        }
+        sw.Stop();
+        return new BenchmarkInfo
+        {
+            Iterations = iterations,
+            TimeInMilliseconds = sw.ElapsedMilliseconds,
+        };
+    }
+
+    public void Reset()
+    {
+        _state.Ip = 0;
+        _state.Stack.Sp = 0;
+        _state.Frames.Clear();
     }
 }
 
@@ -178,10 +169,13 @@ public class VmInstanceBuilder
 {
     public VmInstanceBuilder()
     {
-
+        _output = new ConsoleOutput();
+        _stackSize = 1000000;
     }
 
     private Assembly? _assembly;
+    private IVmOutput _output;
+    private int _stackSize;
 
     public VmInstanceBuilder WithAssembly(Assembly assembly)
     {
@@ -189,13 +183,35 @@ public class VmInstanceBuilder
         return this;
     }
 
+    public VmInstanceBuilder WithOutput(IVmOutput output)
+    {
+        _output = output;
+        return this;
+    }
+
+    public VmInstanceBuilder WithStackSize(int size)
+    {
+        _stackSize = size;
+        return this;
+    }
+
     public VmInstance Build()
     {
-        var vmInstance = new VmInstance();
+        var vmInstance = new VmInstance(_stackSize, _output);
         if (_assembly is not null)
         {
             vmInstance.LoadAssembly(_assembly);
         }
         return vmInstance;
     }
+}
+
+public class BenchmarkInfo
+{
+    public int Iterations { get; set; }
+    public double TimeInMilliseconds { get; set; }
+    public double TimeInMicroseconds => TimeInMilliseconds * 1000;
+    public double TimeInNanoseconds => TimeInMicroseconds * 1000;
+    public double TimeInMillisecondsPerIteration => TimeInMilliseconds / Iterations;
+    public double TimeInMicrosecondsPerIteration => TimeInMicroseconds / Iterations;
 }

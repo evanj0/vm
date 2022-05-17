@@ -16,7 +16,9 @@ module Asm =
             | Call of string
             | Arg of string
             | Local of string
+            | LocalStore of string
             | If of t: Stmt list * e: Stmt list
+            | While of cond: Stmt list * body: Stmt list
 
         type TopLevel =
             | Proc of name: string * parameters: string list * locals: string list * ops: Stmt list
@@ -56,12 +58,13 @@ module Asm =
 
                 let nullaryOpCode name opcode = pOp name (Internal.OpCode (vm.lib.Op(opcode)))
 
-                let pExpr keyword args = pchar '(' >>. sp >>. pstring keyword >>. sp >>. args .>> sp .>> pchar ')'
+                let pExpr keyword args = attempt (pchar '(' >>. sp >>. pstring keyword >>. sp >>. args .>> sp .>> pchar ')')
 
                 let pArg keyword value = attempt(pchar '.' >>. pstring keyword) >>. sp >>. pchar '(' >>. sp >>. value .>> sp .>> pchar ')'
 
                 let fromInt32 = vm.lib.Word.FromI32
                 let fromInt64 = vm.lib.Word.FromI64
+                let fromFloat64 = vm.lib.Word.FromF64
 
                 type Ops = vm.lib.OpCode
 
@@ -73,6 +76,7 @@ module Asm =
                     choice
                         [
                             pExpr "if" (pArg "then" ops .>> sp .>>. pArg "else" ops) |>> Stmt.If
+                            pExpr "while" (pArg "cond" ops .>> sp .>>. pArg "do" ops) |>> Stmt.While
 
                             unaryOpCode "exit" pint32 Ops.Exit fromInt32
 
@@ -81,6 +85,7 @@ module Asm =
                             nullaryOpCode "debug.dump_stack" Ops.DebugDumpStack
                             nullaryOpCode "debug.dump_heap" Ops.DebugDumpHeap
                             nullaryOpCode "debug.print_i64" Ops.Debug_PrintI64
+                            nullaryOpCode "debug.print_f64" Ops.Debug_PrintF64
                             nullaryOpCode "debug.print_bool" Ops.Debug_PrintBool
                             // pstring "debug.message" >>. sp >>. quotedString |>> 
 
@@ -91,12 +96,15 @@ module Asm =
                             // Values
 
                             unaryOpCode "i64.push" pint64 Ops.I64Push fromInt64 
+                            unaryOpCode "f64.push" pfloat Ops.F64Push fromFloat64 
 
                             // Procs
 
                             pstring "call" >>. sp >>. ident |>> Stmt.Call
-                            pstring "local.push" >>. sp >>. ident |>> Stmt.Local
+                            pstring "loc.push" >>. sp >>. ident |>> Stmt.Local
                             pstring "arg.push" >>. sp >>. ident |>> Stmt.Arg
+
+                            pstring "loc.store" >>. sp >>. ident |>> Stmt.LocalStore
 
                             // Math
 
@@ -104,6 +112,7 @@ module Asm =
                             nullaryOpCode "i64.sub" Ops.I64_Sub
                             nullaryOpCode "i64.mul" Ops.I64_Mul
                             nullaryOpCode "i64.div" Ops.I64_Div
+                            nullaryOpCode "i64.conv_f64" Ops.I64_ConvF64
 
                             nullaryOpCode "f64.add" Ops.F64_Add
                             nullaryOpCode "f64.sub" Ops.F64_Sub
@@ -253,6 +262,8 @@ module Asm =
                     this.Op(OpCode.ArgLoad, Word.FromI32(_paramMap[name]))
                 | Local name ->
                     this.Op(OpCode.LocalLoad, Word.FromI32(_localMap[name]))
+                | LocalStore name ->
+                    this.Op(OpCode.LocalStore, Word.FromI32(_localMap[name]))
                 | If (t, e) ->
                     this.PushLabelPrefix()
                         .JumpTrue("then")
@@ -268,7 +279,19 @@ module Asm =
 
                         .Label("end")
                         .PopLabelPrefix()
-                
+                | While (cond, body) -> 
+                    this.PushLabelPrefix()
+                        .Label("cond")
+                        .Stmts(cond)
+                        .JumpTrue("body") // jump over next jump
+                        .Jump("end") // hit if prev jump wasnt hit
+
+                        .Label("body")
+                        .Stmts(body)
+                        .Jump("cond")
+
+                        .Label("end")
+                        .PopLabelPrefix()
                 |> ignore
             this
 

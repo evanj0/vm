@@ -14,7 +14,7 @@ public struct Frame
     {
         ReturnAddr = returnAddr;
         BaseSp = baseSp;
-;       ProcInfo = procInfo;
+        ProcInfo = procInfo;
     }
     public int ReturnAddr;
 

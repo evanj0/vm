@@ -60,6 +60,17 @@ namespace vm.lib
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Word FromF64(double value)
+        {
+            unsafe
+            {
+                double* ptr = &value;
+                Word* wordPtr = (Word*)ptr;
+                return *wordPtr;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Word FromI32(int value)
         {
             unsafe
@@ -98,6 +109,19 @@ namespace vm.lib
                 {
                     long* longPtr = (long*)wordPtr;
                     return *longPtr;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public double ToF64()
+        {
+            unsafe
+            {
+                fixed (Word* wordPtr = &this)
+                {
+                    double* doublePtr = (double*)wordPtr;
+                    return *doublePtr;
                 }
             }
         }

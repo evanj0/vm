@@ -61,6 +61,7 @@ namespace vm.lib
         DebugDumpHeap,
 
         Debug_PrintI64,
+        Debug_PrintF64,
         Debug_PrintBool,
         Debug_Message,
 
@@ -111,6 +112,8 @@ namespace vm.lib
         /// </summary>
         LocalLoad,
 
+        LocalStore,
+
         // Heap
 
         /// <summary>
@@ -150,6 +153,7 @@ namespace vm.lib
         I64_Sub,
         I64_Mul,
         I64_Div,
+        I64_ConvF64,
 
         F64_Add,
         F64_Sub,

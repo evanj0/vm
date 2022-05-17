@@ -8,9 +8,10 @@ try
 {
     Set-Location -Path $PSScriptRoot;
     Write-Output "Publishing vm";
-    Start-Process -FilePath "dotnet" -ArgumentList @("publish", $vmDir, "-c Release", "-r win10-x64", "-o ./publish/vm", "-p:PublishSingleFile=true", "-p:PublishTrimmed=true") -Wait -NoNewWindow;
+    # "-p:PublishTrimmed=true"
+    Start-Process -FilePath "dotnet" -ArgumentList @("publish", $vmDir, "-c Release", "-r win10-x64", "-o ./publish/vm", "-p:PublishSingleFile=true") -Wait -NoNewWindow;
     Write-Output "Publishing asm";
-    Start-Process -FilePath "dotnet" -ArgumentList @("publish", $asmDir, "-c Release", "-r win10-x64", "-o ./publish/asm", "-p:PublishSingleFile=true", "-p:PublishTrimmed=true") -Wait -NoNewWindow;
+    Start-Process -FilePath "dotnet" -ArgumentList @("publish", $asmDir, "-c Release", "-r win10-x64", "-o ./publish/asm", "-p:PublishSingleFile=true") -Wait -NoNewWindow;
     Copy-Item "./publish/vm/vm.exe" -Destination $vmInstallDir;
     Write-Output "Installed to $vmInstallDir";
     Copy-Item "./publish/asm/asm.exe" -Destination $asmInstallDir;
