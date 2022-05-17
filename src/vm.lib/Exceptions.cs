@@ -1,9 +1,4 @@
 ﻿using vm.lib.Memory;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace vm.lib.Exceptions
 {
@@ -49,30 +44,54 @@ namespace vm.lib.Exceptions
 
     public class InstructionNotSupportedException : VmException
     {
-        public InstructionNotSupportedException(string opName) : base($"Instruction `{opName}` is not supported.") { }
-    }
+        public InstructionNotSupportedException(string opName) : base($"Instruction `{opName}` is not supported.")
+        {
+            OpName = opName;
+        }
 
+        public string OpName { get; }
+    }
 
     // Heap
 
-    public class VmHeapException : Exception
+    public class HeapOverflowException : VmException
     {
-        public HeapPointer Pointer { get; }
+        public HeapOverflowException() : base($"The managed heap has overflowed.") { }
+    }
 
-        public VmHeapException(string message, HeapPointer pointer) : base(message)
+    public class ObjectHeaderTypeMismatch : VmException
+    {
+        public ObjectHeaderTypeMismatch(ReferenceType expected, ReferenceType actual) : base($"Expected reference type `{expected}`, but got `{actual}`")
         {
-            Pointer = pointer;
+            Expected = expected;
+            Actual = actual;
         }
+
+        public ReferenceType Expected { get; }
+        public ReferenceType Actual { get; }
     }
 
-    public class InvalidPointerException : VmHeapException
+    public class IndexOutOfBoundsException : VmException
     {
-        public InvalidPointerException(HeapPointer pointer) : base($"Pointer `{pointer.Debug()}` does not point to a valid memory location.", pointer) { }
+        public IndexOutOfBoundsException(int index, int length) : base($"Index {index} out of bounds for length {length}")
+        {
+            Index = index;
+            Length = length;
+        }
+
+        public int Index { get; }
+        public int Length { get; }
     }
 
-    public class TypeMismatchException : VmHeapException
+    public class InvalidFieldException : VmException
     {
-        public TypeMismatchException(ReferenceType expected, ReferenceType actual, HeapPointer pointer) 
-            : base($"Expected type `{expected}` at location `{pointer.Debug()}`, but found type `{actual}`.", pointer) { }
+        public InvalidFieldException(int structInfoIndex, int field) : base($"Field at index {field} does not exist for struct at index {structInfoIndex}")
+        {
+            StructInfoIndex = structInfoIndex;
+            Field = field;
+        }
+
+        public int StructInfoIndex { get; }
+        public int Field { get; }
     }
 }

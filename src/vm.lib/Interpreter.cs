@@ -122,50 +122,6 @@ public static class Interpreter
                         break;
                     }
 
-                // Heap
-
-                case OpCode.RecordAlloc:
-                    { 
-                        var pointer = heap.AllocRecord(inst.Data.ToI32());
-                        vm.Stack.Push(pointer.ToWord());
-                        break;
-                    }
-
-                case OpCode.RecordGetField:
-                    {
-                        var pointer = vm.Stack.Pop().ToHeapPointer();
-                        var value = heap.GetField(pointer, inst.Data.ToI32());
-                        vm.Stack.Push(value);
-                        break;
-                    }
-
-                // ptr * -> 
-                case OpCode.RecordSetField:
-                    {
-                        var value = vm.Stack.Pop();
-                        var pointer = vm.Stack.Pop().ToHeapPointer();
-                        heap.SetField(pointer, inst.Data.ToI32(), value);
-                        break;
-                    }
-
-                case OpCode.ClosureAlloc:
-                    {
-                        var procPointer = inst.Data.ReadU32(0);
-                        var numParams = inst.Data.ReadU16(4);
-                        var pointer = heap.AllocClosure((int)procPointer, numParams);
-                        vm.Stack.Push(pointer.ToWord());
-                        break;
-                    }
-
-                case OpCode.ClosureSetArg:
-                    {
-                        var value = vm.Stack.Pop();
-                        var pointer = vm.Stack.Pop().ToHeapPointer();
-                        var paramIdx = inst.Data.ReadU16(0);
-                        heap.SetClosureArg(pointer, paramIdx, value);
-                        break;
-                    }
-
                 // Math
 
                 // i64 i64 -> i64

@@ -1,26 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.InteropServices;
 
 namespace vm.lib.Memory;
 
-// +----------------+------------------------+-------------+
-// | Generic Header | Object-Specific Header | Object Data |
-// |   Descriptor   |                        |             |
-// |   GC Flags     |                        |             |
-// |   Size         |                        |             |
-// +----------------+------------------------+-------------+
-
 public enum ReferenceType : byte
 {
-    Record,
-    Union,
-    Closure,
-    String,
+    Array,
+    Struct,
+}
+
+public enum DataType : byte
+{
+    I64,
+    F64,
+    Ptr,
 }
 
 [StructLayout(LayoutKind.Explicit)]
@@ -29,100 +21,49 @@ public struct Header
     [FieldOffset(0)]
     public ReferenceType Type;
 
-    [FieldOffset(4)]
-    public int Size;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Word ToWord()
-    {
-        unsafe
-        {
-            fixed (Header* ptr = &this) 
-            {
-                Word* wordPtr = (Word*)ptr;
-                return *wordPtr;
-            }
-
-        }
-    }
+    public const int Size = 8;
 }
 
 [StructLayout(LayoutKind.Explicit)]
-public struct RecordHeader
+public struct ArrayHeader
 {
-    [FieldOffset(0)]
+    [FieldOffset(Header.Size + 0)]
+    public int Length;
+
+    [FieldOffset(Header.Size + 4)]
+    public int Stride;
+
+    public const int Size = 
+        Header.Size + 
+        sizeof(int) + 
+        sizeof(int);
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct StructHeader
+{
+    [FieldOffset(Header.Size + 0)]
     public int NumFields;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Word ToWord()
-    {
-        unsafe
-        {
-            fixed (RecordHeader* ptr = &this)
-            {
-                Word* wordPtr = (Word*)ptr;
-                return *wordPtr;
-            }
+    [FieldOffset(Header.Size + 4)]
+    public int StructInfoIndex;
 
-        }
-    }
+    public static readonly int Size =
+        Header.Size +
+        sizeof(int) +
+        sizeof(int);
+}
+
+public struct StructInfo
+{
+    public FieldInfo[] Fields;
 }
 
 [StructLayout(LayoutKind.Explicit)]
-public struct ClosureHeader
+public struct FieldInfo
 {
     [FieldOffset(0)]
-    public int Pointer;
-
+    public int Offset;
     [FieldOffset(4)]
-    public int NumArgs;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Word ToWord() 
-    {
-        unsafe
-        {
-            fixed (ClosureHeader* ptr = &this)
-            {
-                Word* wordPtr = (Word*)ptr;
-                return *wordPtr;
-            }
-        }
-    }
-}
-
-public static class Word_Header_Extensions 
-{
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Header ToHeader(this Word word)
-    {
-        unsafe
-        {
-            Word* ptr = &word;
-            Header* headerPtr = (Header*)ptr;
-            return *headerPtr;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static RecordHeader ToProductHeader(this Word word)
-    {
-        unsafe
-        {
-            Word* ptr = &word;
-            RecordHeader* headerPtr = (RecordHeader*)ptr;
-            return *headerPtr;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ClosureHeader ToClosureHeader(this Word word)
-    {
-        unsafe
-        {
-            Word* ptr = &word;
-            ClosureHeader* headerPtr = (ClosureHeader*)ptr;
-            return *headerPtr;
-        }
-    }
+    public DataType DataType;
 }

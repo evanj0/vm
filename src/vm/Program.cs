@@ -1,12 +1,8 @@
-﻿using System.Diagnostics;
-
-using CommandLine;
-
+﻿using CommandLine;
+using System.Diagnostics;
 using vm.lib;
 using vm.lib.Exceptions;
 using vm.lib.Memory;
-using asm.lib;
-using static vm.lib.Interpreter;
 
 namespace vm;
 
@@ -90,7 +86,7 @@ public class Program
 
 public ref struct VmInstance
 {
-    public VmInstance(int stackSize, IVmOutput output)
+    public VmInstance(int stackSize, int heapSize, IVmOutput output)
     {
         _state = new Vm()
         {
@@ -98,7 +94,7 @@ public ref struct VmInstance
             Stack = new ValueStack(stackSize),
             Frames = new Stack<Frame>(),
         };
-        _heap = new Heap(initialSize: 1000);
+        _heap = new Heap(heapSize);
         _program = new();
         _procTable = new();
         _strings = Array.Empty<string>();
@@ -192,12 +188,14 @@ public class VmInstanceBuilder
     public VmInstanceBuilder()
     {
         _output = new ConsoleOutput();
-        _stackSize = 1000000;
+        _stackSize = 1024 * 64 / 8; // 64 kb
+        _heapSize = 1024 * 1024; // 1 mb
     }
 
     private Assembly? _assembly;
     private IVmOutput _output;
     private int _stackSize;
+    private int _heapSize;
 
     public VmInstanceBuilder WithAssembly(Assembly assembly)
     {
@@ -217,9 +215,15 @@ public class VmInstanceBuilder
         return this;
     }
 
+    public VmInstanceBuilder WithHeapSize(int size)
+    {
+        _heapSize = size;
+        return this;
+    }
+
     public VmInstance Build()
     {
-        var vmInstance = new VmInstance(_stackSize, _output);
+        var vmInstance = new VmInstance(_stackSize, _heapSize, _output);
         if (_assembly is not null)
         {
             vmInstance.LoadAssembly(_assembly);

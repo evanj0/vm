@@ -1,235 +1,141 @@
-﻿using vm.lib.Exceptions;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.CompilerServices;
+using vm.lib.Exceptions;
 
 namespace vm.lib.Memory;
 
-public class Heap
+public ref struct Heap
 {
-    public Heap(int initialSize)
+    public Heap(int size)
     {
-        Data = new Word[initialSize];
-        Top = 0;
+        Data = new Span<byte>(new byte[size]);
+        _index = 0;
+        Structs = Array.Empty<StructInfo>();
     }
 
-    public Word[] Data;
-    public int Top;
+    public Span<byte> Data;
+    private int _index;
+    public StructInfo[] Structs;
 
-    const int HeaderSize = 2;
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Expand(int size)
+    public int Alloc(int sizeBytes)
     {
-        var newData = new Word[Data.Length + size];
-        Array.Copy(Data, newData, Data.Length);
-        Data = newData;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ref Word GetWordRef(HeapPointer pointer)
-    {
-        if (pointer.Index >= Data.Length)
+        var pointer = _index;
+        _index += sizeBytes;
+        if (_index >= Data.Length)
         {
-            throw new InvalidPointerException(pointer);
+            throw new HeapOverflowException();
         }
-        return ref Data[pointer.Index];
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Word Deref(HeapPointer pointer)
-    {
-        return GetWordRef(pointer);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Header GetHeader(HeapPointer pointer)
-    {
-        unsafe
-        {
-            fixed (Word* wordPtr = &GetWordRef(pointer))
-            {
-                Header* headerPtr = (Header*)wordPtr;
-                return *headerPtr;
-            }
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public HeapPointer Alloc(int size)
-    {
-        if (Top + size >= Data.Length)
-        {
-            Expand(Data.Length + size);
-        }
-        var index = Top;
-        Top += size;
-        return new HeapPointer()
-        { 
-            Index = index,
-        };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Write(HeapPointer pointer, Word value)
-    {
-        if (pointer.Index >= Top)
-        {
-            throw new InvalidPointerException(pointer);
-        }
-        Data[pointer.Index] = value;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public HeapPointer AllocRecord(int fields)
-    {
-        var pointer = Alloc(fields + HeaderSize); // fields + headers
-        var header = new Header()
-        {
-            Size = fields + HeaderSize,
-            Type = ReferenceType.Record,
-        };
-        var recordHeader = new RecordHeader()
-        {
-            NumFields = fields,
-        };
-        GetWordRef(pointer) = header.ToWord();
-        GetWordRef(pointer + 1) = recordHeader.ToWord();
         return pointer;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void CheckRecord(HeapPointer pointer, int field)
+    public unsafe void Write<T>(int pointer, T value, int size) where T : unmanaged
     {
-        var header = Deref(pointer).ToHeader();
-        var recordHeader = Deref(pointer + 1).ToProductHeader();
-        if (header.Type != ReferenceType.Record)
+        fixed(byte* dataPtr = &Data[pointer])
         {
-            throw new TypeMismatchException(ReferenceType.Record, header.Type, pointer);
-        }
-        if (field >= recordHeader.NumFields)
-        {
-            throw new VmHeapException($"Record did not contain at least {field + 1} field(s).", pointer);
+            Buffer.MemoryCopy(&value, dataPtr, Data.Length - pointer, size);
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Word GetField(HeapPointer pointer, int field)
+    public void Write(int pointer, Word value)
     {
-        CheckRecord(pointer, field);
-        return Deref(pointer + HeaderSize + field);
+        Data[pointer + 0] = value.Byte0;
+        Data[pointer + 1] = value.Byte1;
+        Data[pointer + 2] = value.Byte2;
+        Data[pointer + 3] = value.Byte3;
+        Data[pointer + 4] = value.Byte4;
+        Data[pointer + 5] = value.Byte5;
+        Data[pointer + 6] = value.Byte6;
+        Data[pointer + 7] = value.Byte7;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetField(HeapPointer pointer, int field, Word value)
+    private unsafe byte* GetDataPtr(int pointer)
     {
-        CheckRecord(pointer, field);
-        GetWordRef(pointer + HeaderSize + field) = value;
+        fixed (byte* dataPtr = &Data[pointer])
+        {
+            return dataPtr;
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public HeapPointer AllocClosure(int procPointer, int numParams)
+    private unsafe T* GetDataPtr<T>(int pointer) where T : unmanaged
     {
-        var pointer = Alloc(numParams + HeaderSize);
-        var header = new Header()
+        return (T*)GetDataPtr(pointer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private unsafe T Reinterpret<T>(int pointer) where T : unmanaged
+    {
+        return *(T*)GetDataPtr(pointer);
+    }
+
+    public unsafe Header GetHeader(int pointer)
+    {
+        return Reinterpret<Header>(pointer);
+    }
+
+    private unsafe void CheckHeaderType(int pointer, ReferenceType expectedType)
+    {
+        var header = Reinterpret<Header>(pointer);
+        if (header.Type != expectedType)
         {
-            Size = numParams + HeaderSize,
-            Type = ReferenceType.Closure,
-        };
-        var closureHeader = new ClosureHeader()
+            throw new ObjectHeaderTypeMismatch(expectedType, header.Type);
+        }
+    }
+
+    public unsafe int CreateArray(int length, int stride)
+    {
+        var pointer = Alloc(ArrayHeader.Size + (length * stride));
+        var arrayHeader = new ArrayHeader
         {
-            NumArgs = numParams,
-            Pointer = procPointer,
+            Length = length,
+            Stride = stride,
         };
-        Write(pointer, header.ToWord());
-        Write(pointer + 1, closureHeader.ToWord());
+        Header* header = (Header*)&arrayHeader;
+        header->Type = ReferenceType.Array;
+        Write(pointer, arrayHeader, ArrayHeader.Size);
         return pointer;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void CheckClosureType(HeapPointer pointer)
+    public unsafe ArrayHeader GetArrayHeader(int pointer)
     {
-        var header = Deref(pointer).ToHeader();
-        if (header.Type != ReferenceType.Closure)
+        CheckHeaderType(pointer, ReferenceType.Array);
+        return Reinterpret<ArrayHeader>(pointer);
+    }
+
+    public unsafe T GetArrayElement<T>(int pointer, int index) where T : unmanaged
+    {
+        var header = GetArrayHeader(pointer);
+        if (index >= header.Length)
         {
-            throw new TypeMismatchException(ReferenceType.Closure, header.Type, pointer);
+            throw new IndexOutOfBoundsException(index, header.Length);
         }
+        return Reinterpret<T>(pointer + ArrayHeader.Size + (index * header.Stride));
     }
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void CheckClosureArgs(HeapPointer pointer, int args)
+
+    public unsafe void SetArrayElement<T>(int pointer, int index, T value, int size) where T : unmanaged
     {
-        var closureHeader = Deref(pointer + 1).ToClosureHeader();
-        if (args > closureHeader.NumArgs)
+        var header = GetArrayHeader(pointer);
+        if (index >= header.Length)
         {
-            throw new VmHeapException($"Closure did not contain at least {args} arguments(s).", pointer);
+            throw new IndexOutOfBoundsException(index, header.Length);
         }
+        Write(pointer + ArrayHeader.Size + (index * header.Stride), value, size);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ClosureHeader GetClosureHeader(HeapPointer pointer)
+    public unsafe StructHeader GetStructHeader(int pointer)
     {
-        CheckClosureType(pointer);
-        return Deref(pointer + 1).ToClosureHeader();
+        CheckHeaderType(pointer, ReferenceType.Struct);
+        return Reinterpret<StructHeader>(pointer);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetClosureArg(HeapPointer pointer, int param, Word value)
+    public unsafe T GetStructField<T>(int pointer, int field) where T : unmanaged
     {
-        CheckClosureType(pointer);
-        CheckClosureArgs(pointer, param + 1); // number of args
-        Write(pointer + HeaderSize + param, value);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Word GetClosureArg(HeapPointer pointer, int param)
-    {
-        CheckClosureType(pointer);
-        CheckClosureArgs(pointer, param + 1);
-        return Deref(pointer + HeaderSize + param);
-    }
-}
-
-[StructLayout(LayoutKind.Explicit)]
-public struct HeapPointer
-{
-    [FieldOffset(0)]
-    public int Index;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static HeapPointer operator +(HeapPointer a, int b)
-    {
-        return new HeapPointer { Index = a.Index + b };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Word ToWord()
-    {
-        unsafe
+        var header = GetStructHeader(pointer);
+        var structInfo = Structs[header.StructInfoIndex];
+        if (field >= structInfo.Fields.Length)
         {
-            fixed (HeapPointer* heapPointerPtr = &this)
-            {
-                Word* wordPtr = (Word*)heapPointerPtr;
-                return *wordPtr;
-            }
+            throw new InvalidFieldException(header.StructInfoIndex, field);
         }
-    }
-
-    public string Debug()
-    {
-        return $"{Index}";
-    }
-}
-
-public static class Word_HeapPointer_Extensions 
-{
-    public static HeapPointer ToHeapPointer(this Word word)
-    {
-        unsafe
-        {
-            Word* wordPtr = &word;
-            HeapPointer* heapPointerPtr = (HeapPointer*)wordPtr;
-            return *heapPointerPtr;
-        }
+        return Reinterpret<T>(pointer + StructHeader.Size + structInfo.Fields[field].Offset);
     }
 }
