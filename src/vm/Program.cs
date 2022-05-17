@@ -119,16 +119,26 @@ public ref struct VmInstance
         _strings = assembly.Strings;
     }
 
-    public ExitStatus Run()
+    public ExitStatus RunWithoutErrorHandling()
     {
         return Interpreter.Run(ref _state, ref _heap, 1000000, _output, _program, _procTable, _strings);
+    }
+
+    public ExitStatus Run()
+    {
+        try
+        {
+            return RunWithoutErrorHandling();
+        }
+        catch (VmException) { }
+        return new ExitStatus(1);
     }
 
     public ExitStatus RunDebug()
     {
         try
         {
-            Run();
+            RunWithoutErrorHandling();
         }
         catch (VmException e)
         {
@@ -143,13 +153,25 @@ public ref struct VmInstance
     public BenchmarkInfo RunBenchmark(int iterations)
     {
         var sw = new Stopwatch();
-        sw.Start();
-        for (var i = 0; i < iterations; i++)
+        try
         {
-            Run();
-            Reset();
+            sw.Start();
+            for (var i = 0; i < iterations; i++)
+            {
+                RunWithoutErrorHandling();
+                Reset();
+            }
         }
-        sw.Stop();
+        catch (VmException e)
+        {
+            Console.WriteLine($"Runtime execution error: {e.Message}");
+            Console.WriteLine("Debugging info:");
+            Console.WriteLine(_state.Debug());
+        }
+        finally
+        {
+            sw.Stop();
+        }
         return new BenchmarkInfo
         {
             Iterations = iterations,

@@ -4,7 +4,7 @@ module Asm =
 
     module internal Internal =
         
-        type Op2 =
+        type Op1 =
             | Op of vm.lib.Op
             | Call of string
             | Label of string
@@ -12,11 +12,11 @@ module Asm =
             | Jump_True of string
 
         type Stmt =
-            | OpCode of vm.lib.Op
+            | Op of vm.lib.Op
             | Call of string
-            | Arg of string
-            | Local of string
-            | LocalStore of string
+            | Arg__Load of string
+            | Loc__Load of string
+            | Loc__Store of string
             | If of t: Stmt list * e: Stmt list
             | While of cond: Stmt list * body: Stmt list
 
@@ -52,11 +52,11 @@ module Asm =
 
                 let pOpArgs2 name arg1 arg2 inst = pOpGen name (arg1 .>> spaces .>>. arg2) |>> inst
 
-                let opCode code dataMap inData = Internal.OpCode (vm.lib.Op(code, dataMap inData))
+                let opCode code dataMap inData = Stmt.Op (vm.lib.Op(code, dataMap inData))
 
                 let unaryOpCode name argParser opcode dataMapping = pOpArg name argParser (opCode opcode dataMapping)
 
-                let nullaryOpCode name opcode = pOp name (Internal.OpCode (vm.lib.Op(opcode)))
+                let nullaryOpCode name opcode = pOp name (Stmt.Op (vm.lib.Op(opcode)))
 
                 let pExpr keyword args = attempt (pchar '(' >>. sp >>. pstring keyword >>. sp >>. args .>> sp .>> pchar ')')
 
@@ -82,61 +82,57 @@ module Asm =
 
                             // Debugging
 
-                            nullaryOpCode "debug.dump_stack" Ops.DebugDumpStack
-                            nullaryOpCode "debug.dump_heap" Ops.DebugDumpHeap
-                            nullaryOpCode "debug.print_i64" Ops.Debug_PrintI64
-                            nullaryOpCode "debug.print_f64" Ops.Debug_PrintF64
-                            nullaryOpCode "debug.print_bool" Ops.Debug_PrintBool
+                            nullaryOpCode "debug.dump_stack" Ops.Debug__Dump_Stack
+                            nullaryOpCode "debug.dump_heap" Ops.Debug__Dump_Heap
+                            nullaryOpCode "debug.print_i64" Ops.Debug__Print_I64
+                            nullaryOpCode "debug.print_f64" Ops.Debug__Print_F64
+                            nullaryOpCode "debug.print_bool" Ops.Debug__Print_Bool
                             // pstring "debug.message" >>. sp >>. quotedString |>> 
-
-                            // IO
-
-                            nullaryOpCode "io.console.write_str" Ops.IO_Console_WriteString
 
                             // Values
 
-                            unaryOpCode "i64.push" pint64 Ops.I64Push fromInt64 
-                            unaryOpCode "f64.push" pfloat Ops.F64Push fromFloat64 
+                            unaryOpCode "i64.push" pint64 Ops.I64__Push fromInt64 
+                            unaryOpCode "f64.push" pfloat Ops.F64__Push fromFloat64 
 
                             // Procs
 
                             pstring "call" >>. sp >>. ident |>> Stmt.Call
-                            pstring "loc.push" >>. sp >>. ident |>> Stmt.Local
-                            pstring "arg.push" >>. sp >>. ident |>> Stmt.Arg
+                            pstring "loc.push" >>. sp >>. ident |>> Stmt.Loc__Load
+                            pstring "arg.push" >>. sp >>. ident |>> Stmt.Arg__Load
 
-                            pstring "loc.store" >>. sp >>. ident |>> Stmt.LocalStore
+                            pstring "loc.store" >>. sp >>. ident |>> Stmt.Loc__Store
 
                             // Math
 
-                            nullaryOpCode "i64.add" Ops.I64_Add
-                            nullaryOpCode "i64.sub" Ops.I64_Sub
+                            nullaryOpCode "i64.add" Ops.I64__Add
+                            nullaryOpCode "i64.sub" Ops.I64__Sub
                             nullaryOpCode "i64.mul" Ops.I64_Mul
-                            nullaryOpCode "i64.div" Ops.I64_Div
-                            nullaryOpCode "i64.conv_f64" Ops.I64_ConvF64
+                            nullaryOpCode "i64.div" Ops.I64__Div
+                            nullaryOpCode "i64.conv_f64" Ops.I64__Conv_F64
 
-                            nullaryOpCode "f64.add" Ops.F64_Add
-                            nullaryOpCode "f64.sub" Ops.F64_Sub
-                            nullaryOpCode "f64.mul" Ops.F64_Mul
-                            nullaryOpCode "f64.div" Ops.F64_Div
+                            nullaryOpCode "f64.add" Ops.F64__Add
+                            nullaryOpCode "f64.sub" Ops.F64__Sub
+                            nullaryOpCode "f64.mul" Ops.F64__Mul
+                            nullaryOpCode "f64.div" Ops.F64__Div
                         
-                            nullaryOpCode "i64.cmp_eq" Ops.I64_CmpEq
-                            nullaryOpCode "i64.cmp_gt" Ops.I64_CmpGt
-                            nullaryOpCode "i64.cmp_lt" Ops.I64_CmpLt
-                            nullaryOpCode "i64.cmp_ge" Ops.I64_CmpGe
-                            nullaryOpCode "i64.cmp_le" Ops.I64_CmpLe
+                            nullaryOpCode "i64.cmp_eq" Ops.I64__Cmp_Eq
+                            nullaryOpCode "i64.cmp_gt" Ops.I64__Cmp_Gt
+                            nullaryOpCode "i64.cmp_lt" Ops.I64__Cmp_Lt
+                            nullaryOpCode "i64.cmp_ge" Ops.I64__Cmp_Ge
+                            nullaryOpCode "i64.cmp_le" Ops.I64__Cmp_Le
                         
-                            nullaryOpCode "f64.cmp_eq" Ops.F64_CmpEq
-                            nullaryOpCode "f64.cmp_gt" Ops.F64_CmpGt
-                            nullaryOpCode "f64.cmp_lt" Ops.F64_CmpLt
-                            nullaryOpCode "f64.cmp_ge" Ops.F64_CmpGe
-                            nullaryOpCode "f64.cmp_le" Ops.F64_CmpLe
+                            nullaryOpCode "f64.cmp_eq" Ops.F64__Cmp_Eq
+                            nullaryOpCode "f64.cmp_gt" Ops.F64__Cmp_Gt
+                            nullaryOpCode "f64.cmp_lt" Ops.F64__Cmp_Lt
+                            nullaryOpCode "f64.cmp_ge" Ops.F64__Cmp_Ge
+                            nullaryOpCode "f64.cmp_le" Ops.F64__Cmp_Le
                         
-                            nullaryOpCode "bool.cmp_eq" Ops.Bool_CmpEq
-                            nullaryOpCode "bool.cmp_ne" Ops.Bool_CmpNe
+                            nullaryOpCode "bool.cmp_eq" Ops.Bool__Cmp_Eq
+                            nullaryOpCode "bool.cmp_ne" Ops.Bool__Cmp_Ne
 
-                            nullaryOpCode "bool.and" Ops.Bool_And
-                            nullaryOpCode "bool.not" Ops.Bool_Not
-                            nullaryOpCode "bool.or" Ops.Bool_Or
+                            nullaryOpCode "bool.and" Ops.Bool__And
+                            nullaryOpCode "bool.not" Ops.Bool__Not
+                            nullaryOpCode "bool.or" Ops.Bool__Or
                         ]
                 opRef.Value <- opImpl
 
@@ -168,7 +164,7 @@ module Asm =
     type AssemblerLabelException(label) = inherit AssemblerException(sprintf "Label `%s` could not be found." label)
 
     type internal AsmBuilder() = class
-        let _ops = System.Collections.Generic.List<Op2>()
+        let _ops = System.Collections.Generic.List<Op1>()
         let _labelPrefixStack = System.Collections.Generic.Stack<string>()
         let mutable _labelPrefixIndex = 0;
         let _paramMap = System.Collections.Generic.Dictionary<string, int>()
@@ -208,18 +204,18 @@ module Asm =
             _ops.Add(Jump_True (CreateLabel(label)))
             this
         member this.Op(op: Op) =
-            _ops.Add(Op2.Op op)
+            _ops.Add(Op1.Op op)
             this
         member this.Op(opCode: OpCode, value: Word) =
-            _ops.Add(Op2.Op (Op(opCode, value)))
+            _ops.Add(Op1.Op (Op(opCode, value)))
             this
         member this.Op(opCode: OpCode) =
-            _ops.Add(Op2.Op (Op(opCode)))
+            _ops.Add(Op1.Op (Op(opCode)))
             this
         member this.DebugMessage(message: string) =
             let index = _strings.Count
             _strings.Add(message)
-            this.Op(OpCode.Debug_Message, Word.FromI32(index))
+            this.Op(OpCode.Debug__Message, Word.FromI32(index))
 
         member this.BeginProc(name: string, numParams: int, numLocals: int) =
             let label = sprintf "proc::%s" name
@@ -248,22 +244,22 @@ module Asm =
             this.Op(OpCode.Return)
 
         member this.Call(name: string) =
-            _ops.Add(Op2.Call name)
+            _ops.Add(Op1.Call name)
             this
 
         member this.Stmts(input: Stmt list): AsmBuilder =
             for stmt in input do
                 match stmt with
-                | OpCode op -> 
+                | Op op -> 
                     this.Op(op)
                 | Call name ->
                     this.Call(name)
-                | Arg name ->
-                    this.Op(OpCode.ArgLoad, Word.FromI32(_paramMap[name]))
-                | Local name ->
-                    this.Op(OpCode.LocalLoad, Word.FromI32(_localMap[name]))
-                | LocalStore name ->
-                    this.Op(OpCode.LocalStore, Word.FromI32(_localMap[name]))
+                | Arg__Load name ->
+                    this.Op(OpCode.Arg__Push, Word.FromI32(_paramMap[name]))
+                | Loc__Load name ->
+                    this.Op(OpCode.Loc__Push, Word.FromI32(_localMap[name]))
+                | Loc__Store name ->
+                    this.Op(OpCode.Loc__Store, Word.FromI32(_localMap[name]))
                 | If (t, e) ->
                     this.PushLabelPrefix()
                         .JumpTrue("then")
@@ -347,13 +343,13 @@ module Asm =
             for op in _ops do
                 match op with
                 // passthrough ops
-                | Op2.Op op -> ops.Add(op)
+                | Op1.Op op -> ops.Add(op)
                 // replace labels with noOps to keep indices the same
-                | Op2.Call name ->
+                | Op1.Call name ->
                     // need to use this because we want proc index and not address
                     let index = _procToIndex[name]
                     ops.Add(Op(OpCode.Call, Word.FromI32(index)))
-                | Label _ -> ops.Add(Op(OpCode.NoOp))
+                | Label _ -> ops.Add(Op(OpCode.No_Op))
                 // ops that use labels
                 | Jump_True label ->
                     let addr = getAddr(label)
@@ -367,41 +363,7 @@ module Asm =
     end
     type CsList<'T> = System.Collections.Generic.List<'T>
 
-    let rec internal ConvertOps1to2(input, labelGen: LabelGen): CsList<Op2> =
-        let mutable ops = CsList<Op2>()
-        for op in input do
-            match op with
-            | OpCode op -> 
-                ops.Add(Op2.Op op)
-            | If (t, e) ->
-                let thenLabel = labelGen.CreateThen()
-                let elseLabel = labelGen.CreateElse()
-                let endLabel = labelGen.CreateEnd()
-                labelGen.Increment()
-
-                ops.Add(Jump_True thenLabel)
-                ops.Add(Jump elseLabel)
-
-                ops.Add(Label thenLabel)
-                ops.AddRange(ConvertOps1to2(t, labelGen))
-                ops.Add(Jump endLabel)
-
-                ops.Add(Label elseLabel)
-                ops.AddRange(ConvertOps1to2(e, labelGen))
-                ops.Add(Jump endLabel)
-
-                ops.Add(Label endLabel)
-        ops
-
-    let internal Convert1to2(program: Code) = 
-        let mutable ops = CsList<Op2>()
-        let entryPointLabel = "entry_point"
-        let labelGen = LabelGen()
-        ops.Add(Jump entryPointLabel)
-        ops.Add(Label entryPointLabel)
-        ops.AddRange(ConvertOps1to2(program.entryPoint, labelGen))
-
-    let internal Convert2toOps(input: CsList<Op2>): vm.lib.Op array * vm.lib.ProcInfo array * string array =
+    let internal Convert2toOps(input: CsList<Op1>): vm.lib.Op array * vm.lib.ProcInfo array * string array =
         let mutable ops = CsList<vm.lib.Op>()
         let mutable labels = System.Collections.Generic.Dictionary<string, int>()
         let mutable procTable = CsList<vm.lib.ProcInfo>()
@@ -422,8 +384,8 @@ module Asm =
 
         for op in input do
             match op with
-            | Op2.Op op -> ops.Add(op)
-            | Label _ -> ops.Add(Op(OpCode.NoOp))
+            | Op1.Op op -> ops.Add(op)
+            | Label _ -> ops.Add(Op(OpCode.No_Op))
             | Jump_True label ->
                 let index = getIndex(label)
                 ops.Add(Op(OpCode.Jump_True, Word.FromI32(index)))

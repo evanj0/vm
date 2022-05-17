@@ -31,11 +31,7 @@ public static class Interpreter
                 case OpCode.Exit:
                     return new ExitStatus(inst.Data.ToI32());
 
-                case OpCode.NoOp:
-                    break;
-
-                case OpCode.IpSet:
-                    vm.Ip = inst.Data.ToI32();
+                case OpCode.No_Op:
                     break;
 
                 case OpCode.Call:
@@ -68,42 +64,42 @@ public static class Interpreter
 
                 // Debugging
 
-                case OpCode.DebugDumpStack:
+                case OpCode.Debug__Dump_Stack:
                     output.WriteLine("----------- Stack Dump -----------");
                     output.Write(vm.Debug());
                     output.WriteLine("--------- End Stack Dump ---------");
                     output.WriteLine("");
                     break;
 
-                case OpCode.Debug_PrintI64:
+                case OpCode.Debug__Print_I64:
                     output.WriteLine($"{vm.Stack.Pop().ToI64()}");
                     break;
 
-                case OpCode.Debug_PrintF64:
+                case OpCode.Debug__Print_F64:
                     output.WriteLine($"{vm.Stack.Pop().ToF64()}");
                     break;
 
-                case OpCode.Debug_PrintBool:
+                case OpCode.Debug__Print_Bool:
                     output.WriteLine($"{vm.Stack.Pop().ToBool().ToString().ToLower()}");
                     break;
 
                 // Stack Ops
 
                 //  -> i64
-                case OpCode.I64Push:
+                case OpCode.I64__Push:
                     vm.Stack.Push(inst.Data);
                     break;
 
-                case OpCode.F64Push:
+                case OpCode.F64__Push:
                     vm.Stack.Push(inst.Data);
                     break;
 
                 //  -> bool
-                case OpCode.BoolPush:
+                case OpCode.Bool__Push:
                     vm.Stack.Push(inst.Data);
                     break;
 
-                case OpCode.ArgLoad:
+                case OpCode.Arg__Push:
                     {
                         var index = PeekCurrentFrame(ref vm).ArgsSp + inst.Data.ToI32();
                         var value = vm.Stack.Index(index);
@@ -111,14 +107,14 @@ public static class Interpreter
                         break;
                     }
 
-                case OpCode.LocalLoad:
+                case OpCode.Loc__Push:
                     {
                         var index = PeekCurrentFrame(ref vm).LocalsSp + inst.Data.ToI32();
                         var value = vm.Stack.Index(index);
                         vm.Stack.Push(value);
                         break;
                     }
-                case OpCode.LocalStore:
+                case OpCode.Loc__Store:
                     {
                         var value = vm.Stack.Pop();
                         var index = PeekCurrentFrame(ref vm).LocalsSp + inst.Data.ToI32();
@@ -173,14 +169,14 @@ public static class Interpreter
                 // Math
 
                 // i64 i64 -> i64
-                case OpCode.I64_Add:
+                case OpCode.I64__Add:
                     {
                         var val2 = vm.Stack.Pop().ToI64();
                         var val1 = vm.Stack.Pop().ToI64();
                         vm.Stack.Push(Word.FromI64(val1 + val2));
                         break;
                     }
-                case OpCode.I64_Sub:
+                case OpCode.I64__Sub:
                     {
                         var val2 = vm.Stack.Pop().ToI64();
                         var val1 = vm.Stack.Pop().ToI64();
@@ -195,7 +191,7 @@ public static class Interpreter
                         break;
                     }
 
-                case OpCode.I64_ConvF64:
+                case OpCode.I64__Conv_F64:
                     {
                         var val = vm.Stack.Pop().ToI64(); // i64
                         vm.Stack.Push(Word.FromF64(val)); // f64
@@ -203,28 +199,28 @@ public static class Interpreter
                     }
 
 
-                case OpCode.F64_Add:
+                case OpCode.F64__Add:
                     {
                         var val2 = vm.Stack.Pop().ToF64();
                         var val1 = vm.Stack.Pop().ToF64();
                         vm.Stack.Push(Word.FromF64(val1 + val2));
                         break;
                     }
-                case OpCode.F64_Sub:
+                case OpCode.F64__Sub:
                     {
                         var val2 = vm.Stack.Pop().ToF64();
                         var val1 = vm.Stack.Pop().ToF64();
                         vm.Stack.Push(Word.FromF64(val1 - val2));
                         break;
                     }
-                case OpCode.F64_Mul:
+                case OpCode.F64__Mul:
                     {
                         var val2 = vm.Stack.Pop().ToF64();
                         var val1 = vm.Stack.Pop().ToF64();
                         vm.Stack.Push(Word.FromF64(val1 * val2));
                         break;
                     }
-                case OpCode.F64_Div:
+                case OpCode.F64__Div:
                     {
                         var val2 = vm.Stack.Pop().ToF64();
                         var val1 = vm.Stack.Pop().ToF64();
@@ -233,7 +229,7 @@ public static class Interpreter
                     }
 
                 // i64 i64 -> bool
-                case OpCode.I64_CmpEq:
+                case OpCode.I64__Cmp_Eq:
                     {
                         var val1 = vm.Stack.Pop().ToI64();
                         var val2 = vm.Stack.Pop().ToI64();
@@ -241,7 +237,7 @@ public static class Interpreter
                         break;
                     }
 
-                case OpCode.I64_CmpLe:
+                case OpCode.I64__Cmp_Le:
                     {
                         var val2 = vm.Stack.Pop().ToI64();
                         var val1 = vm.Stack.Pop().ToI64();
@@ -249,7 +245,7 @@ public static class Interpreter
                         break;
                     }
 
-                case OpCode.I64_CmpLt:
+                case OpCode.I64__Cmp_Lt:
                     {
                         var val2 = vm.Stack.Pop().ToI64();
                         var val1 = vm.Stack.Pop().ToI64();
@@ -257,7 +253,7 @@ public static class Interpreter
                         break;
                     }
 
-                case OpCode.F64_CmpLt:
+                case OpCode.F64__Cmp_Lt:
                     {
                         var val2 = vm.Stack.Pop().ToF64();
                         var val1 = vm.Stack.Pop().ToF64();
