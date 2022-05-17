@@ -2,7 +2,7 @@
 
 ```
 iterations = 10
-fib(30)
+fib(32)
 ```
 
 ```
