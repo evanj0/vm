@@ -9,7 +9,7 @@ fib(32)
 asm ./fib.txt -o ./out/fib
 vm ./out/fib
 
-python3 ./fib.py
+python ./fib.py
 node ./fib.js
 vm benchmark ./out/fib --iterations 10
 ```
@@ -24,7 +24,7 @@ pi = 3.14159265359
 asm ./pi.txt -o ./out/pi
 vm ./out/pi
 
-python3 ./pi.py
+python ./pi.py
 node ./pi.js
 vm benchmark ./out/pi --iterations 1
 ```
