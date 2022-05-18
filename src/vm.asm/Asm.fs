@@ -20,8 +20,14 @@ module Asm =
             | If of t: Stmt list * e: Stmt list
             | While of cond: Stmt list * body: Stmt list
 
+        type GeneratorToken =
+            | Token of string
+            | Space
+            | Macro of name: string * args: GeneratorToken list list
+
         type TopLevel =
             | Proc of name: string * parameters: string list * locals: string list * ops: Stmt list
+            | Macro of name: string * parameters: string list * body: Stmt list
 
         type Code = { entryPoint: Stmt list; topLevel: TopLevel list }
 
@@ -363,7 +369,7 @@ module Asm =
     end
     type CsList<'T> = System.Collections.Generic.List<'T>
 
-    let internal Convert2toOps(input: CsList<Op1>): vm.lib.Op array * vm.lib.ProcInfo array * string array =
+    let internal ConvertToOps(input: CsList<Op1>): vm.lib.Op array * vm.lib.ProcInfo array * string array =
         let mutable ops = CsList<vm.lib.Op>()
         let mutable labels = System.Collections.Generic.Dictionary<string, int>()
         let mutable procTable = CsList<vm.lib.ProcInfo>()

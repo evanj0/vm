@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\asm.lib.macro\asm.lib.macro.csproj" />
     <ProjectReference Include="..\..\src\asm\asm.csproj" />
     <ProjectReference Include="..\..\src\vm.asm\asm.lib.fsproj" />
     <ProjectReference Include="..\..\src\vm.lib\vm.lib.csproj" />

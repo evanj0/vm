@@ -14,6 +14,7 @@ namespace vm.lib
         Exit,
         No_Op,
         Call,
+        Call_Extern,
         Return,
         Jump,
         Jump_True,

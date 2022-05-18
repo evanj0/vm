@@ -15,6 +15,8 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "test.integration", "test\te
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{E3403A33-CB9F-4463-8D72-E30ADEFC57B6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "asm.lib.macro", "src\asm.lib.macro\asm.lib.macro.csproj", "{6264396E-9E85-4F58-B04C-9D301C88366F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,10 @@ Global
 		{634777F1-B80E-4B92-9440-CBB37632EDBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{634777F1-B80E-4B92-9440-CBB37632EDBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{634777F1-B80E-4B92-9440-CBB37632EDBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6264396E-9E85-4F58-B04C-9D301C88366F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6264396E-9E85-4F58-B04C-9D301C88366F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6264396E-9E85-4F58-B04C-9D301C88366F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6264396E-9E85-4F58-B04C-9D301C88366F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

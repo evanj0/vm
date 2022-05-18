@@ -80,3 +80,20 @@ let test3Text = """
 
 [<Test>]
 let test3() = test test3Text (fun s -> s.Trim() = "5")
+
+let macroTestText = """
+[macro] loc_i64_inc name amount [begin]
+
+    loc.push #(name)
+    i64.push #(amount)
+    i64.add
+    loc.store #(name)
+
+[endmacro]
+
+#[loc_i64_inc #var1, 2]
+"""
+
+[<Test>]
+let macroTest() = 
+    printf "%s" (asm.lib.macro.Parser.Process(macroTestText))

@@ -40,6 +40,10 @@ public static class Interpreter
                         Call(ref vm, maxStack, procTable, proc);
                         break;
                     }
+                case OpCode.Call_Extern:
+                    {
+                        var proc = 
+                    }
 
                 case OpCode.Return:
                     {
