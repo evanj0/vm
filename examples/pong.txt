@@ -1,0 +1,292 @@
+;; call_extern 20 ;; Process.Sleep(time)
+
+;; call_extern 100 ;; Windowing.CreateWindow(x, y)
+;; call_extern 101 ;; Windowing.IsOpen()
+;; call_extern 102 ;; Windowing.Clear()
+;; call_extern 103 ;; Windowing.Display()
+;; call_extern 104 ;; Windowing.DispatchEvents()
+;; call_extern 105 ;; Windowing.IsKeyPressed(key)
+;; call_extern 120 ;; Windowing.DrawCircle(x, y, radius, red, green, blue)
+;; call_extern 121 ;; Windowing.DrawRectangle(x, y, width, height, red, green, blue)
+
+.entry_point (
+
+    call #main
+
+)
+
+(proc #main
+
+    .local (#window_width)
+    .local (#window_height)
+    .local (#circle_x)
+    .local (#circle_y)
+    .local (#circle_radius)
+    .local (#circle_v_x)
+    .local (#circle_v_y)
+
+    .local (#paddle_height)
+    .local (#paddle_1_y)
+    .local (#paddle_1_x)
+    .local (#paddle_2_y)
+    .local (#paddle_2_x)
+
+    ;; initialize locals
+        f64.push 1200 loc.store #window_width
+
+        f64.push 900 loc.store #window_height
+
+        f64.push 600 loc.store #circle_x
+
+        f64.push 450 loc.store #circle_y
+
+        f64.push 10 loc.store #circle_radius
+
+        f64.push 20 loc.store #circle_v_x
+
+        f64.push 8 loc.store #circle_v_y
+
+        f64.push 128 loc.store #paddle_height
+
+        f64.push 300 loc.store #paddle_1_y
+        f64.push 100 loc.store #paddle_1_x
+
+        f64.push 300 loc.store #paddle_2_y
+        f64.push 1100 loc.store #paddle_2_x
+    ;;
+
+    loc.push #window_width f64.conv_i64 ;; x
+    loc.push #window_height f64.conv_i64 ;; y
+    call_extern 100 ;; CreateWindow(x, y)
+
+    (while
+        .cond (
+            call_extern 101 ;; IsOpen()
+        )
+        .do (
+            call_extern 104 ;; DispatchEvents()
+
+            ;; react to key presses
+                ;; paddle 1 up
+                i64.push 22 ;; key = W
+                call_extern 105 ;; Windowing.IsKeyPressed(key)
+                (if .then (
+                    loc.push #paddle_1_y f64.push 12 f64.sub loc.store #paddle_1_y
+                ) .else())
+
+                ;; paddle 1 down
+                i64.push 18 ;; key = S
+                call_extern 105 ;; Windowing.IsKeyPressed(key)
+                (if .then (
+                    loc.push #paddle_1_y f64.push 12 f64.add loc.store #paddle_1_y
+                ) .else())
+
+                ;; paddle 2 up
+                i64.push 73 ;; key = Up
+                call_extern 105 ;; Windowing.IsKeyPressed(key)
+                (if .then (
+                    loc.push #paddle_2_y f64.push 12 f64.sub loc.store #paddle_2_y
+                ) .else())
+
+                ;; paddle 2 down
+                i64.push 74 ;; key = Down
+                call_extern 105 ;; Windowing.IsKeyPressed(key)
+                (if .then (
+                    loc.push #paddle_2_y f64.push 12 f64.add loc.store #paddle_2_y
+                ) .else())
+            ;;
+
+            ;; update position and velocity
+                loc.push #circle_x loc.push #circle_v_x f64.add loc.store #circle_x
+
+                loc.push #circle_y loc.push #circle_v_y f64.add loc.store #circle_y
+
+                ;; check collisions with border
+                ;; left edge
+                loc.push #circle_x loc.push #circle_radius f64.cmp_le
+                (if .then (
+                    ;; right gets ball if left loses
+                    f64.push 12 loc.store #circle_v_x
+                    f64.push 8 loc.store #circle_v_y
+                    f64.push 600 loc.store #circle_x
+                    f64.push 450 loc.store #circle_y
+                ) .else ())
+
+                ;; right edge
+                loc.push #circle_x 
+                loc.push #window_width loc.push #circle_radius f64.sub 
+                f64.cmp_ge
+                (if .then (
+                    ;; left gets ball if right loses
+                    f64.push -12 loc.store #circle_v_x
+                    f64.push 8 loc.store #circle_v_y
+                    f64.push 600 loc.store #circle_x
+                    f64.push 450 loc.store #circle_y
+                ) .else ())
+
+                ;; top edge
+                loc.push #circle_y loc.push #circle_radius f64.cmp_le
+                (if .then (
+                    loc.push #circle_v_y f64.push -1 f64.mul loc.store #circle_v_y
+                ) .else ())
+
+                ;; bottom edge
+                loc.push #circle_y 
+                loc.push #window_height loc.push #circle_radius f64.sub
+                f64.cmp_ge
+                (if .then (
+                    loc.push #circle_v_y f64.push -1 f64.mul loc.store #circle_v_y
+                ) .else ())
+
+                ;; check collisions with paddles
+                ;; paddle 1 ball moving left
+                loc.push #paddle_1_y loc.push #paddle_1_x loc.push #paddle_height loc.push #circle_v_x loc.push #circle_x loc.push #circle_y loc.push #circle_radius
+                call #check_paddle_collision_right
+                (if .then(
+                    ;; update vx
+                    loc.push #circle_v_x f64.push -1 f64.mul loc.store #circle_v_x
+                    ;; update vy                    
+                    loc.push #paddle_1_y loc.push #paddle_height loc.push #circle_y
+                    call #get_bounce_vy
+
+                    loc.store #circle_v_y
+                ) .else())
+                
+                ;; paddle 2 ball moving right
+                loc.push #paddle_2_y loc.push #paddle_2_x loc.push #paddle_height loc.push #circle_v_x loc.push #circle_x loc.push #circle_y loc.push #circle_radius
+                call #check_paddle_collision_left
+                (if .then(
+                    ;; update vx
+                    loc.push #circle_v_x f64.push -1 f64.mul loc.store #circle_v_x
+                    ;; update vy                    
+                    loc.push #paddle_2_y loc.push #paddle_height loc.push #circle_y
+                    call #get_bounce_vy
+
+                    loc.store #circle_v_y
+                ) .else())
+            ;; 
+
+            call_extern 102 ;; Clear()
+
+            ;; draw circle
+                loc.push #circle_x loc.push #circle_radius f64.sub ;; x
+                loc.push #circle_y loc.push #circle_radius f64.sub ;; y
+                loc.push #circle_radius ;; radius
+                i64.push 255 ;; red
+                i64.push 32 ;; green
+                i64.push 32 ;; blue
+                call_extern 120 ;; Windowing.DrawCircle(x, y, radius, red, green, blue)
+            ;; 
+
+            ;; draw paddle 1
+                loc.push #paddle_1_x ;; x
+                loc.push #paddle_1_y ;; y
+                f64.push 4 ;; width
+                loc.push #paddle_height ;; height
+                i64.push 255 ;; red
+                i64.push 255 ;; green
+                i64.push 255 ;; blue
+                call_extern 121 ;; Windowing.DrawRectangle(x, y, width, height, red, green, blue)
+            ;;
+
+            ;; draw paddle 2
+                loc.push #paddle_2_x ;; x
+                loc.push #paddle_2_y ;; y
+                f64.push 4 ;; width
+                loc.push #paddle_height ;; height
+                i64.push 255 ;; red
+                i64.push 255 ;; green
+                i64.push 255 ;; blue
+                call_extern 121 ;; Windowing.DrawRectangle(x, y, width, height, red, green, blue)
+            ;;
+
+            call_extern 103 ;; Display()
+
+            i64.push 8 ;; time  
+            call_extern 20 ;; Process.Sleep(time)
+        )
+    )
+)
+
+(proc #check_paddle_collision_right
+    .param (#paddle_y)
+    .param (#paddle_x)
+    .param (#paddle_height)
+    .param (#ball_v_x)
+    .param (#ball_x)
+    .param (#ball_y)
+    .param (#ball_radius)
+
+    arg.push #ball_x arg.push #ball_radius f64.sub arg.push #paddle_x f64.cmp_le ;; ball touching on x axis
+
+    arg.push #ball_y arg.push #paddle_y f64.cmp_ge ;; ball y higher than paddle y
+
+    arg.push #ball_y 
+    arg.push #paddle_y arg.push #paddle_height f64.add 
+    f64.cmp_le ;; ball y less than paddle y + paddle height
+
+    arg.push #ball_v_x f64.push 0 f64.cmp_lt ;; ball moving to left
+    
+    bool.and bool.and bool.and
+)
+
+(proc #check_paddle_collision_left
+    .param (#paddle_y)
+    .param (#paddle_x)
+    .param (#paddle_height)
+    .param (#ball_v_x)
+    .param (#ball_x)
+    .param (#ball_y)
+    .param (#ball_radius)
+
+    arg.push #ball_x arg.push #ball_radius f64.sub arg.push #paddle_x f64.cmp_ge ;; ball touching on x axis
+
+    arg.push #ball_y arg.push #paddle_y f64.cmp_ge ;; ball y higher than paddle y
+
+    arg.push #ball_y 
+    arg.push #paddle_y arg.push #paddle_height f64.add 
+    f64.cmp_le ;; ball y less than paddle y + paddle height
+
+    arg.push #ball_v_x f64.push 0 f64.cmp_gt ;; ball moving to right
+    
+    bool.and bool.and bool.and
+)
+
+(proc #get_bounce_vy
+    .param (#paddle_y)
+    .param (#paddle_height)
+    .param (#ball_y)
+
+    .local (#half_paddle_height)
+    .local (#distance_to_mid)
+    
+    arg.push #paddle_height f64.push 2 f64.div loc.store #half_paddle_height
+    ;; ball_y - (paddle_y + paddle_half_height)
+    arg.push #ball_y 
+    arg.push #paddle_y
+    loc.push #half_paddle_height
+    f64.add
+    f64.sub
+    loc.store #distance_to_mid
+
+    ;; (distance_to_mid / half_paddle_height) * 12
+    loc.push #distance_to_mid 
+    loc.push #half_paddle_height
+    f64.div
+    f64.push 16
+    f64.mul
+)
+
+(proc #f64_abs
+    .param (#value)
+
+    arg.push #value f64.push 0 f64.cmp_lt
+    (if
+        .then (
+            f64.push -1 arg.push #value f64.mul
+        )
+        .else (
+            arg.push #value
+        )
+    )
+)

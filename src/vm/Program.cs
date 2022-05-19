@@ -60,6 +60,7 @@ public class Program
             .WithProcedure(104, new std.Windowing.DispatchEvents())
             .WithProcedure(105, new std.Windowing.IsKeyPressed())
             .WithProcedure(120, new std.Windowing.DrawCircle())
+            .WithProcedure(121, new std.Windowing.DrawRectangle())
             .Build()
             .Run();
     }

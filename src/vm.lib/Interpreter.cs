@@ -270,6 +270,28 @@ public static class Interpreter
                         break;
                     }
 
+                // bool
+                case OpCode.Bool__And:
+                    {
+                        var val2 = vm.Stack.Pop().ToBool();
+                        var val1 = vm.Stack.Pop().ToBool();
+                        vm.Stack.Push(Word.FromBool(val1 && val2));
+                        break;
+                    }
+                case OpCode.Bool__Or:
+                    {
+                        var val2 = vm.Stack.Pop().ToBool();
+                        var val1 = vm.Stack.Pop().ToBool();
+                        vm.Stack.Push(Word.FromBool(val1 || val2));
+                        break;
+                    }
+                case OpCode.Bool__Not:
+                    {
+                        var val = vm.Stack.Pop().ToBool();
+                        vm.Stack.Push(Word.FromBool(!val));
+                        break;
+                    }
+
                 default:
                     throw new InstructionNotSupportedException(inst.OpCode.ToUserString());
             }

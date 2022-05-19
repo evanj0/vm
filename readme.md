@@ -1,13 +1,13 @@
-# bytecode interpreter reference implementation and assembler
+# interpreter reference implementation and assembler
 
 ## Virtual machine
-- foreign function interface that loads plugins from dotnet libraries
+- foreign function interface for dotnet
 - works as a domain specific language or as the base for one
 
 ## Assembler
 - nested conditionals
 - nested while loops
-- macros/directives
+- named local variables and args
 
 # Installation
 1. install `dotnet cli` from MS website
