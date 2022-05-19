@@ -98,13 +98,13 @@
             loc.push #circle_y f64.push 15 f64.sub ;; y
             f64.push 30 ;; radius
             i64.push 255 ;; red
-            i64.push 255 ;; green
-            i64.push 255 ;; blue
+            i64.push 32 ;; green
+            i64.push 32 ;; blue
             call_extern 120 ;; DrawCircle()
 
             call_extern 103 ;; Display()
 
-            i64.push 8 ;; time
+            i64.push 8 ;; time  
             call_extern 20 ;; Process.Sleep(time)
         )
     )
