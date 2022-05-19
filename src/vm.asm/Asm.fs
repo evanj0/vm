@@ -101,7 +101,8 @@ module Asm =
                             unaryOpCode "f64.push" pfloat Ops.F64__Push fromFloat64 
 
                             // Procs
-
+                            
+                            unaryOpCode "call_extern" pint32 Ops.Call_Extern fromInt32
                             pstring "call" >>. sp >>. ident |>> Stmt.Call
                             pstring "loc.push" >>. sp >>. ident |>> Stmt.Loc__Load
                             pstring "arg.push" >>. sp >>. ident |>> Stmt.Arg__Load

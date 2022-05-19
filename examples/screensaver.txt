@@ -1,0 +1,19 @@
+;; 100 -> std::Windowing::CreateWindow(x, y)
+;; 101 -> std::Windowing::IsOpen()
+;; 102 -> std::Windowing::Clear()
+;; 103 -> std::Windowing::Display()
+;; 104 -> std::Windowing::DrawCircle(x, y, radius, red, green, blue)
+
+.entry_point (
+
+    call #main
+
+)
+
+(proc #main
+
+    i64.push 800 ;; x
+    i64.push 600 ;; y
+    extern 101 ;; CreateWindow(x, y)
+
+)

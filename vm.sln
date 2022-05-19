@@ -15,7 +15,11 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "test.integration", "test\te
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{E3403A33-CB9F-4463-8D72-E30ADEFC57B6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "asm.lib.macro", "src\asm.lib.macro\asm.lib.macro.csproj", "{6264396E-9E85-4F58-B04C-9D301C88366F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "asm.lib.macro", "src\asm.lib.macro\asm.lib.macro.csproj", "{6264396E-9E85-4F58-B04C-9D301C88366F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "std", "std", "{E68FB347-55DB-4ACE-8E03-A072AECE1019}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "std", "src\std\std\std.csproj", "{29C36F1D-FA00-4D0F-B982-2193F21B784F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,12 +51,17 @@ Global
 		{6264396E-9E85-4F58-B04C-9D301C88366F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6264396E-9E85-4F58-B04C-9D301C88366F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6264396E-9E85-4F58-B04C-9D301C88366F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29C36F1D-FA00-4D0F-B982-2193F21B784F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29C36F1D-FA00-4D0F-B982-2193F21B784F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29C36F1D-FA00-4D0F-B982-2193F21B784F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29C36F1D-FA00-4D0F-B982-2193F21B784F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{634777F1-B80E-4B92-9440-CBB37632EDBB} = {E3403A33-CB9F-4463-8D72-E30ADEFC57B6}
+		{29C36F1D-FA00-4D0F-B982-2193F21B784F} = {E68FB347-55DB-4ACE-8E03-A072AECE1019}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BA4262AA-C753-478E-88E4-B61309E8517C}

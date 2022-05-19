@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using vm.lib;
 using vm.lib.Exceptions;
+using vm.lib.Interop;
 using vm.lib.Memory;
 
 namespace vm;
@@ -51,6 +52,11 @@ public class Program
             .WithAssembly(Assembly.DeserializeFromFile(options.InputPath))
             .WithOutput(new ConsoleOutput())
             .WithStackSize(1000000)
+            .WithProcedure(100, new std.Windowing.CreateWindow())
+            .WithProcedure(101, new std.Windowing.IsOpen())
+            .WithProcedure(102, new std.Windowing.Clear())
+            .WithProcedure(103, new std.Windowing.Display())
+            .WithProcedure(104, new std.Windowing.DrawCircle())
             .Build()
             .Run();
     }
@@ -97,6 +103,7 @@ public ref struct VmInstance
         _heap = new Heap(heapSize);
         _program = new();
         _procTable = new();
+        _csProcedures = new();
         _strings = Array.Empty<string>();
         _output = output;
     }
@@ -105,6 +112,7 @@ public ref struct VmInstance
     private Heap _heap;
     private Span<Op> _program;
     private Span<ProcInfo> _procTable;
+    private Dictionary<int, ICsProcedure> _csProcedures;
     private string[] _strings;
     private IVmOutput _output;
 
@@ -115,9 +123,14 @@ public ref struct VmInstance
         _strings = assembly.Strings;
     }
 
+    public void LoadCsProcedures(Dictionary<int, ICsProcedure> procedures)
+    {
+        _csProcedures = procedures;
+    }
+
     public ExitStatus RunWithoutErrorHandling()
     {
-        return Interpreter.Run(ref _state, ref _heap, 1000000, _output, _program, _procTable, _strings);
+        return Interpreter.Run(ref _state, ref _heap, 1000000, _output, _program, _procTable, _strings, _csProcedures);
     }
 
     public ExitStatus Run()
@@ -190,16 +203,24 @@ public class VmInstanceBuilder
         _output = new ConsoleOutput();
         _stackSize = 1024 * 64 / 8; // 64 kb
         _heapSize = 1024 * 1024; // 1 mb
+        _csProcedures = new();
     }
 
     private Assembly? _assembly;
     private IVmOutput _output;
+    private Dictionary<int, ICsProcedure> _csProcedures;
     private int _stackSize;
     private int _heapSize;
 
     public VmInstanceBuilder WithAssembly(Assembly assembly)
     {
         _assembly = assembly;
+        return this;
+    }
+
+    public VmInstanceBuilder WithProcedure(int index, ICsProcedure proc)
+    {
+        _csProcedures.Add(index, proc);
         return this;
     }
 
@@ -227,6 +248,7 @@ public class VmInstanceBuilder
         if (_assembly is not null)
         {
             vmInstance.LoadAssembly(_assembly);
+            vmInstance.LoadCsProcedures(_csProcedures);
         }
         return vmInstance;
     }

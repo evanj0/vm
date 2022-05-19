@@ -9,27 +9,35 @@ namespace vm.lib.Interop;
 
 public ref struct CsProcedureContext
 {
-    public Vm Vm { get; set; }
-    public Heap Heap { get; set; }
-    public int ParamCount { get; set; }
-
-    public Word GetParam(int index)
+    public CsProcedureContext(Span<Word> @params)
     {
-        return Vm.Stack.Index(Vm.Stack.Sp - ParamCount + index);
+        Params = @params;
+        _returnValue = Word.Zero();
     }
 
-    public void Return(int index)
+    public Span<Word> Params;
+    private Word _returnValue;
+
+    public Word ReturnValue { get => _returnValue; }
+
+    public void Return(Word value)
     {
-        Vm.Stack.;
+        _returnValue = value;
     }
 }
 
 public interface ICsProcedure
 {
     public int ParamCount { get; }
-    public void Run();
+    public void Run(ref CsProcedureContext ctx);
 }
 
-public abstract class CsProcedure : ICsProcedure
+public class CsProcedureException : Exception
 {
+    public CsProcedureException(string message, ICsProcedure throwingProcedure) : base(message)
+    {
+        ThrowingProcedure = throwingProcedure;
+    }
+
+    public ICsProcedure ThrowingProcedure { get; }
 }

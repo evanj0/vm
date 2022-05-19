@@ -1,6 +1,7 @@
 ﻿using vm.lib.Exceptions;
 using vm.lib.Memory;
 using System.Runtime.CompilerServices;
+using vm.lib.Interop;
 
 namespace vm.lib;
 
@@ -13,7 +14,7 @@ public static class Interpreter
         // TODO pattern matching
         // TODO gc?
 
-    public static ExitStatus Run(ref Vm vm, ref Heap heap, int maxStack, IVmOutput output, Span<Op> program, Span<ProcInfo> procTable, string[] strings)
+    public static ExitStatus Run(ref Vm vm, ref Heap heap, int maxStack, IVmOutput output, Span<Op> program, Span<ProcInfo> procTable, string[] strings, Dictionary<int, ICsProcedure> csProcedures)
     {
         while (true)
         {
@@ -42,7 +43,9 @@ public static class Interpreter
                     }
                 case OpCode.Call_Extern:
                     {
-                        var proc = 
+                        var proc = inst.Data.ToI32();
+                        CallExtern(ref vm, csProcedures, proc);
+                        break;
                     }
 
                 case OpCode.Return:
@@ -257,6 +260,25 @@ public static class Interpreter
         {
             vm.Stack.Push(Word.Zero());
         }
+    }
+
+    private static void CallExtern(ref Vm vm, Dictionary<int, ICsProcedure> procedures, int proc)
+    {
+        // check if sp will be moved below 0. this can happen if not all args are placed on the stack when a proc is called. 
+        if (vm.Stack.Sp - procedures[proc].ParamCount < 0)
+        {
+            throw new VmException("Base stack pointer was moved out of range.");
+        }
+        var @params = new List<Word>();
+        for (var i = vm.Stack.Sp - procedures[proc].ParamCount; i < vm.Stack.Sp; i++)
+        {
+            @params.Add(vm.Stack.Index(i));
+        }
+        // move stack pointer to get rid of params
+        vm.Stack.Sp -= procedures[proc].ParamCount;
+        var ctx = new CsProcedureContext(@params.ToArray());
+        procedures[proc].Run(ref ctx);
+        vm.Stack.Push(ctx.ReturnValue);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

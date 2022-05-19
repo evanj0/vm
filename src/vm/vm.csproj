@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\std\std\std.csproj" />
     <ProjectReference Include="..\vm.asm\asm.lib.fsproj" />
     <ProjectReference Include="..\vm.lib\vm.lib.csproj" />
   </ItemGroup>
