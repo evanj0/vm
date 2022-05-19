@@ -121,6 +121,7 @@ module Asm =
                             nullaryOpCode "f64.sub" Ops.F64__Sub
                             nullaryOpCode "f64.mul" Ops.F64__Mul
                             nullaryOpCode "f64.div" Ops.F64__Div
+                            nullaryOpCode "f64.conv_i64" Ops.F64__Conv_I64
                         
                             nullaryOpCode "i64.cmp_eq" Ops.I64__Cmp_Eq
                             nullaryOpCode "i64.cmp_gt" Ops.I64__Cmp_Gt

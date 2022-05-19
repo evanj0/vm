@@ -153,7 +153,6 @@ public static class Interpreter
                         vm.Stack.Push(Word.FromI64(val1 * val2));
                         break;
                     }
-
                 case OpCode.I64__Conv_F64:
                     {
                         var val = vm.Stack.Pop().ToI64(); // i64
@@ -190,24 +189,14 @@ public static class Interpreter
                         vm.Stack.Push(Word.FromF64(val1 / val2));
                         break;
                     }
-
-                // i64 i64 -> bool
-                case OpCode.I64__Cmp_Eq:
+                case OpCode.F64__Conv_I64:
                     {
-                        var val1 = vm.Stack.Pop().ToI64();
-                        var val2 = vm.Stack.Pop().ToI64();
-                        vm.Stack.Push(Word.FromBool(val1 == val2));
+                        var val = vm.Stack.Pop().ToF64(); // f64
+                        vm.Stack.Push(Word.FromI64((int)val)); // i64
                         break;
                     }
 
-                case OpCode.I64__Cmp_Le:
-                    {
-                        var val2 = vm.Stack.Pop().ToI64();
-                        var val1 = vm.Stack.Pop().ToI64();
-                        vm.Stack.Push(Word.FromBool(val1 <= val2));
-                        break;
-                    }
-
+                // i64 cmp
                 case OpCode.I64__Cmp_Lt:
                     {
                         var val2 = vm.Stack.Pop().ToI64();
@@ -215,12 +204,69 @@ public static class Interpreter
                         vm.Stack.Push(Word.FromBool(val1 < val2));
                         break;
                     }
+                case OpCode.I64__Cmp_Gt:
+                    {
+                        var val2 = vm.Stack.Pop().ToI64();
+                        var val1 = vm.Stack.Pop().ToI64();
+                        vm.Stack.Push(Word.FromBool(val1 > val2));
+                        break;
+                    }
+                case OpCode.I64__Cmp_Le:
+                    {
+                        var val2 = vm.Stack.Pop().ToI64();
+                        var val1 = vm.Stack.Pop().ToI64();
+                        vm.Stack.Push(Word.FromBool(val1 <= val2));
+                        break;
+                    }
+                case OpCode.I64__Cmp_Ge:
+                    {
+                        var val2 = vm.Stack.Pop().ToI64();
+                        var val1 = vm.Stack.Pop().ToI64();
+                        vm.Stack.Push(Word.FromBool(val1 >= val2));
+                        break;
+                    }
+                case OpCode.I64__Cmp_Eq:
+                    {
+                        var val2 = vm.Stack.Pop().ToI64();
+                        var val1 = vm.Stack.Pop().ToI64();
+                        vm.Stack.Push(Word.FromBool(val1 == val2));
+                        break;
+                    }
 
+                // f64 cmp
                 case OpCode.F64__Cmp_Lt:
                     {
                         var val2 = vm.Stack.Pop().ToF64();
                         var val1 = vm.Stack.Pop().ToF64();
                         vm.Stack.Push(Word.FromBool(val1 < val2));
+                        break;
+                    }
+                case OpCode.F64__Cmp_Gt:
+                    {
+                        var val2 = vm.Stack.Pop().ToF64();
+                        var val1 = vm.Stack.Pop().ToF64();
+                        vm.Stack.Push(Word.FromBool(val1 > val2));
+                        break;
+                    }
+                case OpCode.F64__Cmp_Le:
+                    {
+                        var val2 = vm.Stack.Pop().ToF64();
+                        var val1 = vm.Stack.Pop().ToF64();
+                        vm.Stack.Push(Word.FromBool(val1 <= val2));
+                        break;
+                    }
+                case OpCode.F64__Cmp_Ge:
+                    {
+                        var val2 = vm.Stack.Pop().ToF64();
+                        var val1 = vm.Stack.Pop().ToF64();
+                        vm.Stack.Push(Word.FromBool(val1 >= val2));
+                        break;
+                    }
+                case OpCode.F64__Cmp_Eq:
+                    {
+                        var val2 = vm.Stack.Pop().ToF64();
+                        var val1 = vm.Stack.Pop().ToF64();
+                        vm.Stack.Push(Word.FromBool(val1 == val2));
                         break;
                     }
 
@@ -278,7 +324,10 @@ public static class Interpreter
         vm.Stack.Sp -= procedures[proc].ParamCount;
         var ctx = new CsProcedureContext(@params.ToArray());
         procedures[proc].Run(ref ctx);
-        vm.Stack.Push(ctx.ReturnValue);
+        if (procedures[proc].ReturnsValue)
+        {
+            vm.Stack.Push(ctx.ReturnValue);
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

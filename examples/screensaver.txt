@@ -1,8 +1,12 @@
-;; 100 -> std::Windowing::CreateWindow(x, y)
-;; 101 -> std::Windowing::IsOpen()
-;; 102 -> std::Windowing::Clear()
-;; 103 -> std::Windowing::Display()
-;; 104 -> std::Windowing::DrawCircle(x, y, radius, red, green, blue)
+;; call_extern 20 ;; Process.Sleep(time)
+
+;; call_extern 100 ;; Windowing.CreateWindow(x, y)
+;; call_extern 101 ;; Windowing.IsOpen()
+;; call_extern 102 ;; Windowing.Clear()
+;; call_extern 103 ;; Windowing.Display()
+;; call_extern 104 ;; Windowing.DispatchEvents()
+;; call_extern 105 ;; Windowing.IsKeyPressed(key)
+;; call_extern 120 ;; Windowing.DrawCircle(x, y, radius, red, green, blue)
 
 .entry_point (
 
@@ -12,8 +16,98 @@
 
 (proc #main
 
-    i64.push 800 ;; x
-    i64.push 600 ;; y
-    extern 101 ;; CreateWindow(x, y)
+    .local (#window_width)
+    .local (#window_height)
+    .local (#circle_x)
+    .local (#circle_y)
+    .local (#circle_v_x)
+    .local (#circle_v_y)
+
+    f64.push 1200 loc.store #window_width
+
+    f64.push 900 loc.store #window_height
+
+    f64.push 300 loc.store #circle_x
+
+    f64.push 250 loc.store #circle_y
+
+    f64.push 12 loc.store #circle_v_x
+
+    f64.push 8 loc.store #circle_v_y
+
+    loc.push #window_width f64.conv_i64 ;; x
+    loc.push #window_height f64.conv_i64 ;; y
+    call_extern 100 ;; CreateWindow(x, y)
+
+    (while
+        .cond (
+            call_extern 101 ;; IsOpen()
+        )
+        .do (
+            call_extern 104 ;; DispatchEvents()
+
+            i64.push 22 ;; key = W
+            call_extern 105 ;; Windowing.IsKeyPressed(key)
+            (if
+                .then (
+                    
+                )
+                .else (
+
+                )
+            )
+
+            ;; update position
+
+            loc.push #circle_x loc.push #circle_v_x f64.add loc.store #circle_x
+
+            loc.push #circle_y loc.push #circle_v_y f64.add loc.store #circle_y
+
+            ;;
+
+            ;; check collisions with border
+            
+            ;; left edge
+            loc.push #circle_x f64.push 0 f64.cmp_le
+            (if .then (
+                loc.push #circle_v_x f64.push -1 f64.mul loc.store #circle_v_x
+            ) .else ())
+
+            ;; top edge
+            loc.push #circle_y f64.push 0 f64.cmp_le
+            (if .then (
+                loc.push #circle_v_y f64.push -1 f64.mul loc.store #circle_v_y
+            ) .else ())
+
+            ;; right edge
+            loc.push #circle_x loc.push #window_width f64.cmp_ge
+            (if .then (
+                loc.push #circle_v_x f64.push -1 f64.mul loc.store #circle_v_x
+            ) .else ())
+
+            ;; bottom edge
+            loc.push #circle_y loc.push #window_height f64.cmp_ge
+            (if .then (
+                loc.push #circle_v_y f64.push -1 f64.mul loc.store #circle_v_y
+            ) .else ())
+            ;; 
+
+            call_extern 102 ;; Clear()
+
+            loc.push #circle_x f64.push 15 f64.sub ;; x
+            loc.push #circle_y f64.push 15 f64.sub ;; y
+            f64.push 30 ;; radius
+            i64.push 255 ;; red
+            i64.push 255 ;; green
+            i64.push 255 ;; blue
+            call_extern 120 ;; DrawCircle()
+
+            call_extern 103 ;; Display()
+
+            i64.push 8 ;; time
+            call_extern 20 ;; Process.Sleep(time)
+        )
+    )
+
 
 )

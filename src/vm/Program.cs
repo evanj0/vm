@@ -52,11 +52,14 @@ public class Program
             .WithAssembly(Assembly.DeserializeFromFile(options.InputPath))
             .WithOutput(new ConsoleOutput())
             .WithStackSize(1000000)
+            .WithProcedure(20, new std.Process.Sleep())
             .WithProcedure(100, new std.Windowing.CreateWindow())
             .WithProcedure(101, new std.Windowing.IsOpen())
             .WithProcedure(102, new std.Windowing.Clear())
             .WithProcedure(103, new std.Windowing.Display())
-            .WithProcedure(104, new std.Windowing.DrawCircle())
+            .WithProcedure(104, new std.Windowing.DispatchEvents())
+            .WithProcedure(105, new std.Windowing.IsKeyPressed())
+            .WithProcedure(120, new std.Windowing.DrawCircle())
             .Build()
             .Run();
     }
@@ -139,7 +142,10 @@ public ref struct VmInstance
         {
             return RunWithoutErrorHandling();
         }
-        catch (VmException) { }
+        catch (VmException e)
+        {
+            Console.WriteLine($"Runtime execution error: {e.Message}");
+        }
         return new ExitStatus(1);
     }
 

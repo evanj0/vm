@@ -60,6 +60,7 @@ namespace vm.lib
         F64__Sub,
         F64__Mul,
         F64__Div,
+        F64__Conv_I64,
 
         I64__Cmp_Eq,
         I64__Cmp_Gt,

@@ -7,20 +7,39 @@ namespace vm.std.Windowing;
 
 public class CreateWindow : ICsProcedure
 {
-    public static RenderWindow? Window { get; set; }
+    public static RenderWindow? Window { get; set; } = null;
+
+    public static Dictionary<Keyboard.Key, bool> Keys { get; set; } =
+        Enum.GetValues(typeof(Keyboard.Key))
+        .Cast<Keyboard.Key>()
+        #pragma warning disable CS0618 // Have to do this horrible thing to stop multiple keys with same value being added
+        .Where(x => x != Keyboard.Key.Dash && x != Keyboard.Key.BackSpace && x != Keyboard.Key.Return && x != Keyboard.Key.BackSlash && x != Keyboard.Key.SemiColon)
+        #pragma warning restore CS0618 
+        .Select(key => new { Key = key, Pressed = false })
+        .ToDictionary(x => x.Key, x => x.Pressed);
 
     public int ParamCount => 2;
+
+    public bool ReturnsValue => false;
 
     public void Run(ref CsProcedureContext ctx)
     {
         var x = (uint)ctx.Params[0].ToI32();
         var y = (uint)ctx.Params[1].ToI32();
 
-        var window = new RenderWindow(new VideoMode(x, y), string.Empty);
+        var window = new RenderWindow(new VideoMode(x, y), string.Empty, Styles.Default, new ContextSettings(24, 8, 4));
         Window = window;
         window.Closed += (sender, args) =>
         {
             window.Close();
+        };
+        window.KeyPressed += (sender, args) =>
+        {
+            Keys[args.Code] = true;
+        };
+        window.KeyReleased += (sender, args) =>
+        {
+            Keys[args.Code] = false;
         };
     }
 }
@@ -28,6 +47,8 @@ public class CreateWindow : ICsProcedure
 public class DrawCircle : ICsProcedure
 {
     public int ParamCount => 6;
+
+    public bool ReturnsValue => false;
 
     public void Run(ref CsProcedureContext ctx)
     {
@@ -52,6 +73,8 @@ public class IsOpen : ICsProcedure
 {
     public int ParamCount => 0;
 
+    public bool ReturnsValue => true;
+
     public void Run(ref CsProcedureContext ctx)
     {
         if (CreateWindow.Window is null) throw new CsProcedureException("Window has not been opened.", this);
@@ -64,6 +87,8 @@ public class Clear : ICsProcedure
 {
     public int ParamCount => 0;
 
+    public bool ReturnsValue => false;
+
     public void Run(ref CsProcedureContext ctx)
     {
         if (CreateWindow.Window is null) throw new CsProcedureException("Window has not been opened.", this);
@@ -75,9 +100,38 @@ public class Display : ICsProcedure
 {
     public int ParamCount => 0;
 
+    public bool ReturnsValue => false;
+
     public void Run(ref CsProcedureContext ctx)
     {
         if (CreateWindow.Window is null) throw new CsProcedureException("Window has not been opened.", this);
         CreateWindow.Window.Display();
+    }
+}
+
+public class DispatchEvents : ICsProcedure
+{
+    public int ParamCount => 0;
+
+    public bool ReturnsValue => false;
+
+    public void Run(ref CsProcedureContext ctx)
+    {
+        if (CreateWindow.Window is null) throw new CsProcedureException("Window has not been opened.", this);
+        CreateWindow.Window.DispatchEvents();
+    }
+}
+
+public class IsKeyPressed : ICsProcedure
+{
+    public int ParamCount => 1;
+
+    public bool ReturnsValue => true;
+
+    public void Run(ref CsProcedureContext ctx)
+    {
+        var code = ctx.Params[0].ToI64();
+        var returnValue = CreateWindow.Keys[(Keyboard.Key)code];
+        ctx.Return(Word.FromBool(returnValue));
     }
 }

@@ -29,6 +29,7 @@ public ref struct CsProcedureContext
 public interface ICsProcedure
 {
     public int ParamCount { get; }
+    public bool ReturnsValue { get; }
     public void Run(ref CsProcedureContext ctx);
 }
 
